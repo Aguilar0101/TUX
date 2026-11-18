@@ -1,0 +1,1644 @@
+<!DOCTYPE html>
+<html lang="es" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Tux´s - Gestión Escolar</title>
+    
+    <!-- Variables dinámicas para Tema y Fuente -->
+    <style id="theme-vars">
+        :root {
+            --c-50: #f0fdf4; --c-100: #dcfce7; --c-200: #bbf7d0; 
+            --c-500: #22c55e; --c-600: #16a34a; --c-700: #15803d; --c-900: #14532d;
+            --app-font: ui-sans-serif, system-ui, sans-serif;
+        }
+    </style>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Librerías de QR, Cámara Scanner, Lector de Excel (SheetJS) y Generador de PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: 'var(--c-50)', 100: 'var(--c-100)', 200: 'var(--c-200)',
+                            300: 'var(--c-200)', 400: 'var(--c-500)', 500: 'var(--c-500)',
+                            600: 'var(--c-600)', 700: 'var(--c-700)', 800: 'var(--c-900)', 900: 'var(--c-900)',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['var(--app-font)']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh; margin: 0; background-color: #cbd5e1;
+            transition: background-color 0.3s; font-family: var(--app-font);
+        }
+        .dark body { background-color: #0f172a; }
+        .mobile-container {
+            width: 100%; max-width: 390px; height: 844px; max-height: 100vh;
+            position: relative; overflow-x: hidden; overflow-y: auto;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        .mobile-container::-webkit-scrollbar { width: 0px; background: transparent; }
+        .view { display: none; min-height: 100%; position: relative; background-color: inherit; }
+        .view.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.2s ease-in-out; }
+        .settings-tab-pane { display: none; }
+        .settings-tab-pane.active { display: block; }
+        
+        /* Estilos tabla de matriz de asistencia */
+        .matrix-table th, .matrix-table td { min-width: 45px; text-align: center; }
+        .matrix-table th:first-child, .matrix-table td:first-child { min-width: 120px; text-align: left; position: sticky; left: 0; z-index: 10; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body>
+
+    <!-- MARCO DEL TELÉFONO -->
+    <div class="mobile-container bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 sm:rounded-[2.5rem] sm:border-[8px] sm:border-gray-800 dark:sm:border-black flex flex-col relative" onclick="closeAllMenus()">
+        
+        <!-- MODAL DE PERSONALIZACIÓN (TEMA Y FUENTE) -->
+        <div id="theme-modal" class="absolute inset-0 bg-black/70 backdrop-blur-xs z-[300] flex items-center justify-center p-6 hidden">
+            <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 max-w-xs w-full shadow-2xl text-sm relative">
+                <button onclick="closeThemeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><i class="fas fa-times text-lg"></i></button>
+                <h3 class="font-bold text-brand-600 mb-4 text-base"><i class="fas fa-palette mr-1"></i> Apariencia</h3>
+                
+                <label class="block text-xs font-bold mb-2 text-gray-500 uppercase">Color Principal</label>
+                <div class="grid grid-cols-5 gap-3 mb-5 justify-items-center">
+                    <button onclick="changeThemeColor('green')" class="w-9 h-9 rounded-full bg-green-500 shadow focus:border-2 focus:border-gray-800 dark:focus:border-white"></button>
+                    <button onclick="changeThemeColor('blue')" class="w-9 h-9 rounded-full bg-blue-500 shadow focus:border-2 focus:border-gray-800 dark:focus:border-white"></button>
+                    <button onclick="changeThemeColor('purple')" class="w-9 h-9 rounded-full bg-purple-500 shadow focus:border-2 focus:border-gray-800 dark:focus:border-white"></button>
+                    <button onclick="changeThemeColor('rose')" class="w-9 h-9 rounded-full bg-rose-500 shadow focus:border-2 focus:border-gray-800 dark:focus:border-white"></button>
+                    <button onclick="changeThemeColor('orange')" class="w-9 h-9 rounded-full bg-orange-500 shadow focus:border-2 focus:border-gray-800 dark:focus:border-white"></button>
+                    
+                    <button onclick="changeThemeColor('teal')" class="w-9 h-9 rounded-full bg-teal-500 shadow focus:border-2 focus:border-gray-800 dark:focus:border-white"></button>
+                    <button onclick="changeThemeColor('yellow')" class="w-9 h-9 rounded-full bg-yellow-500 shadow focus:border-2 focus:border-gray-800 dark:focus:border-white"></button>
+                    <button onclick="changeThemeColor('indigo')" class="w-9 h-9 rounded-full bg-indigo-500 shadow focus:border-2 focus:border-gray-800 dark:focus:border-white"></button>
+                    <button onclick="changeThemeColor('cyan')" class="w-9 h-9 rounded-full bg-cyan-500 shadow focus:border-2 focus:border-gray-800 dark:focus:border-white"></button>
+                    <button onclick="changeThemeColor('slate')" class="w-9 h-9 rounded-full bg-slate-500 shadow focus:border-2 focus:border-gray-800 dark:focus:border-white"></button>
+                </div>
+
+                <label class="block text-xs font-bold mb-2 text-gray-500 uppercase">Estilo de Fuente</label>
+                <div class="space-y-2 mb-2 max-h-40 overflow-y-auto pr-1 scrollbar-hide">
+                    <button onclick="changeThemeFont('ui-sans-serif, system-ui, sans-serif')" class="w-full py-2 bg-gray-100 dark:bg-gray-700 rounded-xl font-sans font-medium text-xs">Moderna (Sans)</button>
+                    <button onclick="changeThemeFont('ui-serif, Georgia, serif')" class="w-full py-2 bg-gray-100 dark:bg-gray-700 rounded-xl font-serif font-medium text-xs">Clásica (Serif)</button>
+                    <button onclick="changeThemeFont('ui-monospace, monospace')" class="w-full py-2 bg-gray-100 dark:bg-gray-700 rounded-xl font-mono font-medium text-xs">Técnica (Mono)</button>
+                    <button onclick="changeThemeFont('ui-rounded, \'Hiragino Maru Gothic ProN\', Quicksand, sans-serif')" class="w-full py-2 bg-gray-100 dark:bg-gray-700 rounded-xl font-medium text-xs" style="font-family: ui-rounded, Quicksand, sans-serif;">Redondeada</button>
+                    <button onclick="changeThemeFont('Arial, Helvetica, sans-serif')" class="w-full py-2 bg-gray-100 dark:bg-gray-700 rounded-xl font-medium text-xs" style="font-family: Arial, sans-serif;">Formal (Arial)</button>
+                    <button onclick="changeThemeFont('\'Comic Sans MS\', cursive, sans-serif')" class="w-full py-2 bg-gray-100 dark:bg-gray-700 rounded-xl font-medium text-xs" style="font-family: 'Comic Sans MS', cursive;">Divertida (Cursive)</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ALERTA / MODAL INTERNO -->
+        <div id="app-alert-modal" class="absolute inset-0 bg-black/60 backdrop-blur-xs z-[250] flex items-center justify-center p-6 hidden">
+            <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 max-w-xs w-full shadow-2xl text-center">
+                <div id="app-alert-icon" class="text-4xl mb-3 text-brand-600"><i class="fas fa-info-circle"></i></div>
+                <h3 id="app-alert-title" class="font-bold text-lg mb-1">Aviso</h3>
+                <p id="app-alert-message" class="text-xs text-gray-600 dark:text-gray-300 mb-5">Mensaje de alerta</p>
+                <button onclick="closeAppAlert()" class="w-full bg-brand-600 hover:bg-brand-700 text-white py-3 rounded-xl font-bold text-sm shadow-md transition">Aceptar</button>
+            </div>
+        </div>
+
+        <!-- MODAL DE AUTORIZACIÓN POR CONTRASEÑA -->
+        <div id="auth-modal" class="absolute inset-0 bg-black/70 backdrop-blur-xs z-[260] flex items-center justify-center p-6 hidden">
+            <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 max-w-xs w-full shadow-2xl text-center relative text-sm border-t-4 border-amber-500">
+                <h3 class="font-bold text-base mb-1 text-amber-600"><i class="fas fa-lock mr-1"></i> Contraseña Requerida</h3>
+                <p id="auth-modal-desc" class="text-xs text-gray-500 mb-4">Ingresa tu contraseña de profesor para autorizar esta acción:</p>
+                
+                <input type="password" id="auth-password-input" placeholder="Contraseña de profesor" class="w-full px-3 py-2.5 border rounded-xl dark:bg-gray-700 dark:border-gray-600 outline-none mb-4 text-center font-bold">
+                
+                <div class="flex gap-2">
+                    <button onclick="closeAuthModal()" class="flex-1 bg-gray-200 dark:bg-gray-700 py-2.5 rounded-xl font-bold text-xs">Cancelar</button>
+                    <button onclick="confirmAuthAction()" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold text-xs shadow-lg">Autorizar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: CREDENCIALES QR PARA DESCARGAR PDF -->
+        <div id="print-qr-modal" class="absolute inset-0 bg-black/80 backdrop-blur-sm z-[230] flex items-center justify-center p-4 hidden">
+            <div class="bg-white dark:bg-gray-800 rounded-3xl p-5 w-full h-[85vh] shadow-2xl relative flex flex-col">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-bold text-sm text-brand-600"><i class="fas fa-id-card mr-1"></i> Credenciales QR del Grupo</h3>
+                    <button onclick="closePrintableQRs()" class="text-gray-400 hover:text-gray-600 text-lg"><i class="fas fa-times"></i></button>
+                </div>
+                <!-- Contenedor optimizado para captura PDF -->
+                <div id="print-qr-content-area" class="flex-1 overflow-y-auto bg-white p-2 rounded-2xl">
+                    <div id="print-qrs-grid" class="grid grid-cols-2 gap-3"></div>
+                </div>
+                <button onclick="downloadQRAsPDF()" class="mt-3 w-full bg-brand-600 text-white py-2.5 rounded-xl font-bold text-xs shadow flex items-center justify-center gap-2">
+                    <i class="fas fa-file-pdf"></i> Guardar Credenciales como PDF
+                </button>
+            </div>
+        </div>
+
+        <!-- MODAL: EVALUACIÓN DE RÚBRICA -->
+        <div id="rubric-eval-modal" class="absolute inset-0 bg-black/80 backdrop-blur-sm z-[240] flex items-center justify-center p-4 hidden">
+            <div class="bg-white dark:bg-gray-800 rounded-3xl p-5 w-full shadow-2xl relative flex flex-col max-h-[90vh]">
+                <button onclick="closeRubricEvalModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><i class="fas fa-times text-lg"></i></button>
+                <h3 class="font-bold text-brand-600 text-sm mb-1">Evaluar Rúbrica</h3>
+                <p id="rubric-eval-student" class="text-xs font-bold text-gray-800 dark:text-white mb-3">Alumno</p>
+                
+                <div class="overflow-y-auto flex-1 pr-1 scrollbar-hide" id="rubric-eval-list"></div>
+                
+                <div class="mt-4 pt-3 border-t dark:border-gray-700 flex justify-between items-center">
+                    <span class="text-xs font-bold text-gray-500">Total:</span>
+                    <span id="rubric-eval-total" class="text-xl font-black text-brand-600">0.0</span>
+                </div>
+                <button onclick="saveRubricEval()" class="mt-4 w-full bg-brand-600 text-white py-3 rounded-xl font-bold text-sm shadow">Guardar Calificación</button>
+            </div>
+        </div>
+
+        <!-- MODAL: EDITAR ACTIVIDAD -->
+        <div id="edit-activity-modal" class="absolute inset-0 bg-black/70 backdrop-blur-xs z-[210] flex items-center justify-center p-6 hidden">
+            <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 max-w-xs w-full shadow-2xl text-center relative text-sm space-y-3">
+                <h3 class="font-bold text-base mb-1 text-brand-600">Editar Actividad</h3>
+                <input type="hidden" id="edit-act-id">
+                <div>
+                    <label class="block text-xs font-medium mb-1 text-left">Título de la tarea</label>
+                    <input type="text" id="modal-edit-act-name" class="w-full px-3 py-2 border rounded-xl dark:bg-gray-700 outline-none text-xs">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium mb-1 text-left">Tipo (solo visual, no altera rúbrica)</label>
+                    <select id="modal-edit-act-type" class="w-full px-3 py-2 border rounded-xl dark:bg-gray-700 outline-none text-xs">
+                        <option value="entregable">Entregable (Sí/No)</option>
+                        <option value="calificacion">Calificación directa (0-10)</option>
+                        <option value="rubrica">Rúbrica (Suma 10)</option>
+                    </select>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button onclick="closeEditActivityModal()" class="flex-1 bg-gray-200 dark:bg-gray-700 py-2.5 rounded-xl font-bold text-xs">Cancelar</button>
+                    <button onclick="saveEditedActivity()" class="flex-1 bg-brand-600 text-white py-2.5 rounded-xl font-bold text-xs">Guardar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL PARA VER EL QR REAL DEL ALUMNO -->
+        <div id="student-qr-modal" class="absolute inset-0 bg-black/70 backdrop-blur-xs z-[190] flex items-center justify-center p-6 hidden">
+            <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 max-w-xs w-full shadow-2xl text-center relative">
+                <button onclick="closeStudentQRModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><i class="fas fa-times text-lg"></i></button>
+                <h3 class="font-bold text-base mb-1">Credencial QR</h3>
+                <p id="modal-qr-name" class="text-xs text-brand-600 dark:text-brand-400 font-semibold mb-4">Nombre</p>
+                <div class="bg-white p-4 rounded-2xl shadow-inner border-2 border-dashed border-gray-200 inline-block mb-4">
+                    <div id="qrcode-container" class="flex justify-center items-center w-36 h-36"></div>
+                </div>
+                <p id="modal-qr-account" class="text-xs font-mono text-gray-500 mb-4">Cta: 000</p>
+                <button onclick="closeStudentQRModal()" class="w-full bg-gray-800 hover:bg-gray-900 text-white py-2.5 rounded-xl font-bold text-xs">Cerrar</button>
+            </div>
+        </div>
+
+        <!-- MODAL: ESTADÍSTICAS PERSONALES DEL ALUMNO -->
+        <div id="student-stats-modal" class="absolute inset-0 bg-black/70 backdrop-blur-xs z-[190] flex items-center justify-center p-6 hidden">
+            <div class="bg-white dark:bg-gray-800 rounded-3xl p-5 max-w-xs w-full shadow-2xl relative text-xs space-y-3">
+                <button onclick="closeStudentStatsModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><i class="fas fa-times text-base"></i></button>
+                <h3 class="font-bold text-sm text-brand-600 text-center" id="stats-student-name">Estadísticas del Alumno</h3>
+                <p class="text-[11px] text-gray-400 text-center font-mono" id="stats-student-account">Cta: --</p>
+                <div class="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-2xl flex justify-around text-center">
+                    <div><div class="text-[10px] text-gray-400 uppercase">Asistencia</div><div id="stats-attendance-pct" class="font-bold text-base text-green-500">100%</div></div>
+                    <div class="border-r border-gray-200 dark:border-gray-600"></div>
+                    <div><div class="text-[10px] text-gray-400 uppercase">Promedio</div><div id="stats-grade-avg" class="font-bold text-base text-brand-600">--</div></div>
+                </div>
+                <div id="stats-activities-list" class="space-y-1.5 max-h-40 overflow-y-auto scrollbar-hide"></div>
+                <button onclick="closeStudentStatsModal()" class="w-full bg-gray-800 text-white py-2 rounded-xl font-bold">Cerrar</button>
+            </div>
+        </div>
+
+        <!-- VIEW 1: LOGIN -->
+        <div id="view-login" class="view active">
+            <!-- Botones flotantes (Tema y Modo Oscuro) -->
+            <div class="absolute top-4 left-4 z-50">
+                <button onclick="openThemeModal()" class="w-10 h-10 rounded-full bg-white/50 backdrop-blur-md dark:bg-gray-800/50 shadow text-brand-600 flex items-center justify-center transition hover:scale-105" title="Personalizar Apariencia"><i class="fas fa-palette"></i></button>
+            </div>
+            <div class="absolute top-4 right-4 z-50">
+                <button onclick="toggleDarkMode()" class="w-10 h-10 rounded-full bg-white/50 backdrop-blur-md dark:bg-gray-800/50 shadow text-gray-600 dark:text-gray-300 flex items-center justify-center transition hover:scale-105">
+                    <i class="fas fa-moon dark:hidden"></i><i class="fas fa-sun hidden dark:inline"></i>
+                </button>
+            </div>
+
+            <div class="min-h-[844px] flex flex-col items-center justify-center p-6 bg-white dark:bg-gray-900">
+                <div class="w-full max-w-sm">
+                    <div class="text-center mb-8 mt-10">
+                        <div class="w-20 h-20 bg-brand-100 dark:bg-brand-900/30 rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden shadow-inner border-2 border-brand-500/30">
+                            <img src="1.jpg" alt="The Tux´s Logo" class="w-full h-full object-cover" onerror="this.onerror=null; this.parentNode.innerHTML='<i class=\'fas fa-dove text-3xl text-brand-600\'></i>';">
+                        </div>
+                        <h1 class="text-3xl font-black text-gray-800 dark:text-white tracking-tight">The Tux´s</h1>
+                        <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Gestión Escolar Inteligente</p>
+                    </div>
+
+                    <form id="form-login-profesor" onsubmit="loginProfesor(event)" class="space-y-4 w-full block">
+                        <div>
+                            <input type="email" id="login-email" required placeholder="Correo Electrónico" class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-0 rounded-2xl focus:ring-2 focus:ring-brand-500 outline-none transition text-sm">
+                        </div>
+                        <div>
+                            <input type="password" id="login-pwd" required placeholder="Contraseña" class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-0 rounded-2xl focus:ring-2 focus:ring-brand-500 outline-none transition text-sm">
+                        </div>
+                        <button type="submit" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3.5 rounded-xl shadow-lg active:scale-95 transition mt-2">Ingresar</button>
+                        <div class="text-center mt-6 text-sm space-y-2">
+                            <a href="#" onclick="showAlert('Recuperación', 'Instrucciones enviadas.', 'info')" class="text-brand-600 hover:underline">¿Olvidaste tu contraseña?</a><br>
+                            <span class="text-gray-500">¿Primera vez?</span> <a href="#" onclick="showView('view-register')" class="text-brand-600 font-bold hover:underline">Registrarse</a>
+                        </div>
+                    </form>
+                    <p class="text-center text-[11px] text-gray-400 mt-6"><i class="fas fa-wifi"></i> ¿Eres alumno? Conéctate al hotspot de tu profesor y entra a la dirección que él te comparta.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 2: REGISTER -->
+        <div id="view-register" class="view">
+            <div class="min-h-[844px] flex flex-col items-center justify-center p-6 bg-white dark:bg-gray-900">
+                <div class="w-full max-w-sm">
+                    <button onclick="showView('view-login')" class="text-gray-500 hover:text-brand-600 mb-6 text-xl"><i class="fas fa-arrow-left"></i></button>
+                    <div class="text-center mb-4">
+                        <div class="w-14 h-14 bg-brand-100 rounded-full flex items-center justify-center mx-auto mb-2 overflow-hidden border border-brand-500/30">
+                            <img src="1.jpg" alt="Logo" class="w-full h-full object-cover" onerror="this.onerror=null; this.parentNode.innerHTML='<i class=\'fas fa-dove text-xl text-brand-600\'></i>';">
+                        </div>
+                        <h2 class="text-2xl font-bold">Registro The Tux´s</h2>
+                    </div>
+                    <form onsubmit="register(event)" class="space-y-4 w-full text-sm">
+                        <input type="text" id="reg-name" required placeholder="Nombre Completo" class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-0 rounded-xl outline-none focus:ring-2 focus:ring-brand-500">
+                        <input type="email" id="reg-email" required placeholder="Correo Electrónico" class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-0 rounded-xl outline-none focus:ring-2 focus:ring-brand-500">
+                        <input type="password" id="reg-pwd" required minlength="6" placeholder="Contraseña" class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-0 rounded-xl outline-none focus:ring-2 focus:ring-brand-500">
+                        <button type="submit" class="w-full bg-brand-600 text-white font-bold py-3.5 rounded-xl shadow-lg mt-4">Crear Cuenta</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 3: DASHBOARD PROFESOR -->
+        <div id="view-dashboard" class="view pb-24 bg-gray-50 dark:bg-gray-900">
+            <div class="bg-brand-600 text-white p-6 pt-12 rounded-b-[2rem] shadow-md relative overflow-hidden">
+                <div class="flex justify-between items-center mb-2 relative z-10">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-full overflow-hidden bg-white shadow border border-white/40 flex items-center justify-center">
+                            <img src="1.jpg" alt="Logo" class="w-full h-full object-cover" onerror="this.onerror=null; this.parentNode.innerHTML='<i class=\'fas fa-dove text-brand-600 text-xs\'></i>';">
+                        </div>
+                        <h2 class="text-xl font-bold" id="dash-welcome">Bienvenido</h2>
+                    </div>
+                    <button onclick="openTeacherSettings()" class="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition mr-10" title="Configuración Docente"><i class="fas fa-cog"></i></button>
+                </div>
+                <p id="dash-date" class="text-brand-100 text-xs uppercase tracking-wide relative z-10 font-medium pl-12"></p>
+            </div>
+
+            <div class="p-5 space-y-8 mt-2">
+                <div id="empty-state" class="hidden text-center py-12 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
+                    <div class="w-16 h-16 rounded-full overflow-hidden mx-auto mb-4 shadow border border-brand-500/30 flex items-center justify-center">
+                        <img src="1.jpg" alt="Logo" class="w-full h-full object-cover" onerror="this.onerror=null; this.parentNode.innerHTML='<i class=\'fas fa-dove text-3xl text-brand-500\'></i>';">
+                    </div>
+                    <h3 class="text-lg font-bold mb-2">¡Comienza en The Tux´s!</h3>
+                    <p class="text-gray-500 mb-6 text-sm">Aún no tienes clases registradas.</p>
+                    <button onclick="openCreateClassView()" class="bg-brand-600 text-white px-8 py-3 rounded-full font-bold shadow-lg shadow-brand-500/30"><i class="fas fa-plus mr-2"></i>Crear Clase</button>
+                </div>
+
+                <div id="dashboard-content" class="hidden space-y-8">
+                    <section>
+                        <div class="flex justify-between items-end mb-4">
+                            <h3 class="font-bold text-lg">Clases de Hoy</h3>
+                            <span id="current-time-display" class="text-sm font-bold text-brand-600">--:--</span>
+                        </div>
+                        <div id="today-classes" class="space-y-3"></div>
+                    </section>
+                    <section>
+                        <h3 class="font-bold text-lg mb-4">Todas mis materias</h3>
+                        <div id="all-classes" class="grid grid-cols-2 gap-4"></div>
+                    </section>
+                </div>
+            </div>
+
+            <button onclick="openCreateClassView()" class="absolute bottom-[20px] right-6 w-14 h-14 bg-brand-600 text-white rounded-full flex items-center justify-center text-2xl shadow-lg z-20"><i class="fas fa-plus"></i></button>
+        </div>
+
+        <!-- VIEW: CONFIGURACIÓN DOCENTE -->
+        <div id="view-teacher-settings" class="view bg-gray-50 dark:bg-gray-900 pb-10">
+            <div class="bg-brand-600 text-white p-6 pb-4 pt-10 rounded-b-3xl shadow-md flex items-center">
+                <button onclick="showView('view-dashboard')" class="text-xl mr-4"><i class="fas fa-arrow-left"></i></button>
+                <h2 class="text-lg font-bold">Configuración Docente</h2>
+            </div>
+            
+            <div class="flex bg-white dark:bg-gray-800 border-b dark:border-gray-700 text-xs font-bold text-center shadow-sm">
+                <button onclick="switchSettingsTab('cuenta')" id="st-btn-cuenta" class="flex-1 py-3 border-b-2 border-brand-600 text-brand-600">Cuenta</button>
+                <button onclick="switchSettingsTab('nocturno')" id="st-btn-nocturno" class="flex-1 py-3 border-b-2 border-transparent text-gray-500">Apariencia</button>
+                <button onclick="switchSettingsTab('general')" id="st-btn-general" class="flex-1 py-3 border-b-2 border-transparent text-gray-500">General</button>
+            </div>
+
+            <div class="p-5 text-sm">
+                <div id="st-pane-cuenta" class="settings-tab-pane active space-y-4">
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm space-y-3">
+                        <h3 class="font-bold text-brand-600 text-xs uppercase"><i class="fas fa-user-edit mr-1"></i> Credenciales</h3>
+                        <input type="text" id="settings-teacher-name" class="w-full px-3 py-2 border rounded-xl dark:bg-gray-700 outline-none text-xs">
+                        <input type="email" id="settings-teacher-email" class="w-full px-3 py-2 border rounded-xl dark:bg-gray-700 outline-none text-xs">
+                        <input type="password" id="settings-teacher-pwd" placeholder="Nueva contraseña (opcional)" class="w-full px-3 py-2 border rounded-xl dark:bg-gray-700 outline-none text-xs">
+                        <button onclick="saveTeacherAccountSettings()" class="w-full bg-brand-600 text-white py-2.5 rounded-xl font-bold text-xs">Guardar Cambios</button>
+                    </div>
+                </div>
+                <div id="st-pane-nocturno" class="settings-tab-pane space-y-4">
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm flex items-center justify-between">
+                        <div><h4 class="font-bold text-xs">Modo Oscuro</h4><p class="text-[10px] text-gray-400">Alternar tema global</p></div>
+                        <button onclick="toggleDarkMode()" class="px-4 py-2 bg-brand-600 text-white rounded-xl font-bold text-xs">Alternar</button>
+                    </div>
+                </div>
+                <div id="st-pane-general" class="settings-tab-pane space-y-4">
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm space-y-2 text-xs">
+                        <h4 class="font-bold text-brand-600">The Tux´s</h4>
+                        <p class="text-gray-500">Versión 3.2 Pro (Tauri Native)</p>
+                        <button onclick="showAlert('Datos', 'Caché limpiada.', 'info')" class="w-full bg-gray-100 dark:bg-gray-700 py-2 rounded-xl mt-3 font-bold">Limpiar Caché Local</button>
+                    </div>
+                    <!-- PORTAL DE ALUMNOS POR HOTSPOT -->
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm space-y-3 text-xs">
+                        <h4 class="font-bold text-brand-600"><i class="fas fa-wifi"></i> Portal de alumnos (Hotspot)</h4>
+                        <ol class="list-decimal pl-4 text-gray-500 space-y-1">
+                            <li>Activa el <b>hotspot / punto de acceso</b> de tu dispositivo.</li>
+                            <li>Pulsa <b>Iniciar portal</b>.</li>
+                            <li>Los alumnos se conectan a tu Wi-Fi y escanean el QR o escriben la dirección.</li>
+                        </ol>
+                        <button id="srv-btn" onclick="toggleStudentServer()" class="w-full bg-brand-600 text-white py-2.5 rounded-xl font-bold">Iniciar portal de alumnos</button>
+                        <div id="srv-info" class="hidden text-center space-y-2">
+                            <div class="bg-white p-3 rounded-2xl border-2 border-dashed border-gray-200 inline-block"><div id="srv-qr" class="flex justify-center items-center"></div></div>
+                            <p id="srv-url" class="font-mono font-bold text-sm text-brand-600 break-all"></p>
+                            <p id="srv-msg" class="text-[11px] text-gray-500"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="pt-6">
+                    <button onclick="logout()" class="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-2xl font-bold flex justify-center gap-2 shadow text-xs"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 4: CREAR / EDITAR CLASE -->
+        <div id="view-create-class" class="view bg-gray-50 dark:bg-gray-900 pb-10">
+            <div class="bg-brand-600 text-white p-6 pb-4 pt-10 rounded-b-3xl shadow-md flex items-center">
+                <button onclick="showView('view-dashboard')" class="text-xl mr-4"><i class="fas fa-arrow-left"></i></button>
+                <h2 class="text-xl font-bold" id="class-form-title">Nueva Clase</h2>
+            </div>
+            
+            <form onsubmit="saveClass(event)" class="p-6 space-y-5 text-sm">
+                <input type="hidden" id="edit-class-id">
+                <div>
+                    <label class="block font-medium mb-1">Materia</label>
+                    <input type="text" id="class-materia" required placeholder="Ej. Matemáticas" class="w-full px-4 py-3 border rounded-xl dark:bg-gray-800 dark:border-gray-700 outline-none">
+                </div>
+                <div class="flex gap-4">
+                    <div class="flex-1">
+                        <label class="block font-medium mb-1">Nivel</label>
+                        <select id="class-nivel" class="w-full px-4 py-3 border rounded-xl dark:bg-gray-800 dark:border-gray-700 outline-none">
+                            <option value="Primaria">Primaria</option><option value="Secundaria">Secundaria</option><option value="Preparatoria">Preparatoria</option><option value="Universidad">Universidad</option>
+                        </select>
+                    </div>
+                    <div class="w-1/3">
+                        <label class="block font-medium mb-1">Color</label>
+                        <input type="color" id="class-color" value="#16a34a" class="w-full h-[46px] p-1 border rounded-xl cursor-pointer">
+                    </div>
+                </div>
+                <div>
+                    <label class="block font-medium mb-2">Días de la semana</label>
+                    <div class="flex justify-between gap-1" id="class-days">
+                        <label class="relative cursor-pointer"><input type="checkbox" value="1" class="peer sr-only"><div class="w-10 h-10 rounded-full bg-white border flex items-center justify-center font-medium peer-checked:bg-brand-600 peer-checked:text-white transition">L</div></label>
+                        <label class="relative cursor-pointer"><input type="checkbox" value="2" class="peer sr-only"><div class="w-10 h-10 rounded-full bg-white border flex items-center justify-center font-medium peer-checked:bg-brand-600 peer-checked:text-white transition">M</div></label>
+                        <label class="relative cursor-pointer"><input type="checkbox" value="3" class="peer sr-only"><div class="w-10 h-10 rounded-full bg-white border flex items-center justify-center font-medium peer-checked:bg-brand-600 peer-checked:text-white transition">M</div></label>
+                        <label class="relative cursor-pointer"><input type="checkbox" value="4" class="peer sr-only"><div class="w-10 h-10 rounded-full bg-white border flex items-center justify-center font-medium peer-checked:bg-brand-600 peer-checked:text-white transition">J</div></label>
+                        <label class="relative cursor-pointer"><input type="checkbox" value="5" class="peer sr-only"><div class="w-10 h-10 rounded-full bg-white border flex items-center justify-center font-medium peer-checked:bg-brand-600 peer-checked:text-white transition">V</div></label>
+                    </div>
+                </div>
+                <div class="flex gap-4">
+                    <div class="flex-1"><label class="block font-medium mb-1">Hora Inicio</label><input type="time" id="class-start" required class="w-full px-4 py-3 border rounded-xl outline-none"></div>
+                    <div class="flex-1"><label class="block font-medium mb-1">Hora Fin</label><input type="time" id="class-end" required class="w-full px-4 py-3 border rounded-xl outline-none"></div>
+                </div>
+                <div class="pt-4 space-y-3">
+                    <button type="submit" class="w-full bg-brand-600 text-white font-bold py-3.5 rounded-xl shadow-md">Guardar Clase</button>
+                    <button type="button" onclick="showView('view-dashboard')" class="w-full bg-gray-200 dark:bg-gray-700 font-bold py-3.5 rounded-xl">Cancelar</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- VIEW 5: DETALLE DE CLASE (PROFESOR) -->
+        <div id="view-class-detail" class="view bg-gray-50 dark:bg-gray-900 pb-10">
+            <!-- Header Compacto con Menú de 3 Puntos integrado -->
+            <div id="detail-header" class="text-white p-4 pt-8 rounded-b-[1.5rem] shadow-sm relative transition-colors duration-300">
+                <button onclick="showView('view-dashboard')" class="absolute top-5 left-4 text-white text-lg"><i class="fas fa-arrow-left"></i></button>
+                
+                <!-- MENU DE 3 PUNTOS PARA MATERIA -->
+                <div class="absolute top-5 right-4 z-40">
+                    <button onclick="event.stopPropagation(); toggleDetailMenu()" class="text-white text-xl p-1"><i class="fas fa-ellipsis-v"></i></button>
+                    <div id="detail-menu" class="hidden absolute right-0 top-8 bg-white dark:bg-gray-800 shadow-xl rounded-xl p-1 text-left text-xs min-w-[120px] border dark:border-gray-700">
+                        <button onclick="toggleDetailMenu(); requestActionWithAuth('editar_clase')" class="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg flex items-center gap-2 text-gray-800 dark:text-gray-200"><i class="fas fa-edit text-blue-500"></i> Editar</button>
+                        <button onclick="toggleDetailMenu(); requestActionWithAuth('eliminar_clase')" class="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg flex items-center gap-2 text-red-500"><i class="fas fa-trash-alt"></i> Eliminar</button>
+                    </div>
+                </div>
+
+                <div class="mt-2 text-center px-8">
+                    <h2 id="detail-materia" class="text-lg font-black leading-tight">Materia</h2>
+                    <p id="detail-horario" class="text-xs opacity-90 font-medium">00:00 - 00:00</p>
+                    <div id="detail-status" class="mt-1.5 inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-white text-gray-900 hidden shadow-sm uppercase tracking-wide">
+                        <span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block mr-1.5 animate-pulse"></span> En curso
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navegación -->
+            <div class="flex overflow-x-auto bg-white dark:bg-gray-800 shadow-sm text-xs font-bold border-b dark:border-gray-700 sticky top-0 z-10 scrollbar-hide">
+                <button onclick="switchTab('alumnos')" id="tab-alumnos" class="flex-shrink-0 py-3.5 px-4 border-b-2 border-brand-600 text-brand-600 whitespace-nowrap">Alumnos</button>
+                <button onclick="switchTab('asistencia')" id="tab-asistencia" class="flex-shrink-0 py-3.5 px-4 border-b-2 border-transparent text-gray-500 whitespace-nowrap">Asistencia</button>
+                <button onclick="switchTab('actividades')" id="tab-actividades" class="flex-shrink-0 py-3.5 px-4 border-b-2 border-transparent text-gray-500 whitespace-nowrap">Tareas</button>
+                <button onclick="switchTab('calificaciones')" id="tab-calificaciones" class="flex-shrink-0 py-3.5 px-4 border-b-2 border-transparent text-gray-500 whitespace-nowrap">Evaluar</button>
+                <button onclick="switchTab('reportes')" id="tab-reportes" class="flex-shrink-0 py-3.5 px-4 border-b-2 border-transparent text-gray-500 whitespace-nowrap">Reporte PDF</button>
+            </div>
+
+            <div class="p-4 text-sm">
+                <!-- ALUMNOS -->
+                <div id="content-alumnos" class="tab-content active space-y-4">
+                    <div class="bg-white dark:bg-gray-800 p-3 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                        <div class="flex gap-2">
+                            <input type="text" id="add-student-name" placeholder="Nombre" class="flex-1 px-3 py-2 border rounded-xl outline-none text-xs">
+                            <input type="text" id="add-student-account" placeholder="Cuenta" class="w-20 px-3 py-2 border rounded-xl outline-none text-xs">
+                            <button onclick="addStudent()" class="bg-brand-600 text-white px-3 rounded-xl font-bold"><i class="fas fa-plus"></i></button>
+                        </div>
+                    </div>
+                    
+                    <!-- Botón para Generar Credenciales QR (PDF con selector de ruta) -->
+                    <button onclick="openPrintableQRs()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm text-xs transition">
+                        <i class="fas fa-id-card text-sm"></i> Generar Credenciales QR (PDF)
+                    </button>
+
+                    <div class="bg-white dark:bg-gray-800 p-3 rounded-2xl shadow-sm border border-dashed border-brand-500/50 space-y-2 text-xs">
+                        <h3 class="font-bold text-brand-600 flex items-center gap-1.5"><i class="fas fa-file-excel"></i> Carga Masiva Ilimitada (Excel / CSV / TXT)</h3>
+                        <p class="text-[10px] text-gray-400">Columna A: Nombre, Columna B: Matrícula (Sin límite de filas)</p>
+                        <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv, .txt" class="w-full file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-brand-50 file:text-brand-700 text-[10px]">
+                        <button onclick="simulateExcelUpload()" class="w-full bg-emerald-600 text-white py-1.5 rounded-xl font-bold">Procesar Archivo Masivo</button>
+                    </div>
+                    
+                    <!-- Botón para Eliminar Todos los Alumnos -->
+                    <div class="flex justify-between items-center px-1">
+                        <span id="students-counter" class="text-xs font-bold text-gray-500">0 alumnos</span>
+                        <button onclick="confirmDeleteAllStudents()" class="text-red-500 hover:text-red-700 font-bold text-xs flex items-center gap-1"><i class="fas fa-trash-alt"></i> Eliminar todos</button>
+                    </div>
+
+                    <div id="list-students" class="space-y-2"></div>
+                </div>
+
+                <!-- ASISTENCIA MATRIZ INTERACTIVA -->
+                <div id="content-asistencia" class="tab-content space-y-4">
+                    <button onclick="requestActionWithAuth('asistencia')" class="w-full bg-gray-800 dark:bg-gray-700 text-white py-3 rounded-2xl shadow font-bold flex justify-center items-center gap-2 text-xs">
+                        <i class="fas fa-camera text-base text-brand-400"></i> Escanear QR Continuo (Android)
+                    </button>
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border overflow-hidden dark:border-gray-700">
+                        <div class="p-3 border-b dark:border-gray-700 flex justify-between bg-gray-50 dark:bg-gray-900"><h3 class="font-bold text-xs uppercase tracking-wider">Matriz General</h3></div>
+                        <div id="matrix-attendance-container" class="w-full overflow-x-auto"></div>
+                    </div>
+                </div>
+
+                <!-- ACTIVIDADES (CON CONSTRUCTOR DE RÚBRICA) -->
+                <div id="content-actividades" class="tab-content space-y-4">
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-3">
+                        <h3 class="font-bold text-xs uppercase text-gray-500">Crear Actividad</h3>
+                        <input type="text" id="add-act-name" placeholder="Título de la tarea" class="w-full px-3 py-2 border rounded-xl outline-none text-xs font-bold">
+                        <div class="flex gap-2">
+                            <select id="add-act-type" onchange="toggleRubricBuilder()" class="flex-1 px-3 py-2 border rounded-xl outline-none text-xs">
+                                <option value="entregable">Entregable (Sí/No)</option>
+                                <option value="calificacion">Calificación directa (0-10)</option>
+                                <option value="rubrica">Rúbrica (Suma 10)</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Constructor Rúbrica -->
+                        <div id="rubric-builder-area" class="hidden pt-2 border-t dark:border-gray-700 space-y-2">
+                            <div class="flex justify-between items-center bg-brand-50 p-2 rounded-lg">
+                                <span class="text-[11px] font-bold text-brand-700">Total: <span id="rubric-total-sum">0</span>/10</span>
+                                <button onclick="divideRubricEqually()" class="text-[9px] bg-brand-200 text-brand-800 px-2 py-1 rounded font-bold uppercase">Dividir Igual</button>
+                            </div>
+                            <div id="rubric-criteria-list" class="space-y-1.5 max-h-32 overflow-y-auto pr-1 scrollbar-hide"></div>
+                            <button onclick="addRubricCriterion()" class="w-full text-[10px] text-gray-500 font-bold border-2 border-dashed rounded-lg py-1.5 hover:text-brand-600">+ Añadir aspecto</button>
+                        </div>
+
+                        <button onclick="addActivity()" class="w-full bg-brand-600 text-white py-2.5 rounded-xl font-bold text-xs">Guardar Tarea</button>
+                    </div>
+                    <div id="list-activities" class="space-y-2"></div>
+                </div>
+
+                <!-- CALIFICACIONES -->
+                <div id="content-calificaciones" class="tab-content space-y-4">
+                    <select id="eval-act-select" onchange="renderEvalList()" class="w-full px-3 py-2.5 border rounded-xl outline-none font-bold text-xs bg-white dark:bg-gray-800"></select>
+                    <button onclick="requestActionWithAuth('calificar')" class="w-full bg-gray-800 dark:bg-gray-700 text-white py-3 rounded-2xl shadow font-bold flex justify-center items-center gap-2 text-xs">
+                        <i class="fas fa-camera text-base text-brand-400"></i> Evaluar Continuo con Cámara (Android)
+                    </button>
+                    <div id="list-evaluations" class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 p-2 space-y-1"></div>
+                </div>
+
+                <!-- REPORTE Y VISTA GENERAL DEL GRUPO -->
+                <div id="content-reportes" class="tab-content space-y-4">
+                    <!-- Vista General del Grupo con Matriz Completa y Promedios -->
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border overflow-hidden dark:border-gray-700 mb-4">
+                        <div class="p-3.5 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-900 font-bold text-xs uppercase tracking-wider text-brand-600 flex justify-between items-center">
+                            <span>Matriz y Promedios del Grupo</span>
+                        </div>
+                        <div id="group-overview-container" class="overflow-x-auto"></div>
+                    </div>
+
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm text-center space-y-3 border dark:border-gray-700">
+                        <div class="text-4xl text-red-600"><i class="fas fa-file-pdf"></i></div>
+                        <h3 class="font-bold text-base">Generar Reporte Matriz PDF</h3>
+                        <p class="text-gray-500 text-xs">Incluye porcentaje de asistencia, días asistidos, desglose de actividades y promedios finales.</p>
+                        <button onclick="generatePDFReport()" class="w-full bg-red-600 text-white py-3 rounded-xl font-bold flex justify-center items-center gap-2"><i class="fas fa-download"></i> Guardar Reporte PDF Completo</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 6: DASHBOARD ALUMNO -->
+        <div id="view-student-dashboard" class="view pb-10 bg-gray-50 dark:bg-gray-900">
+            <div class="bg-blue-600 text-white p-6 pt-10 rounded-b-[2rem] shadow-md relative">
+                <button onclick="logout()" class="absolute top-6 right-5 bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase shadow-sm flex items-center gap-1"><i class="fas fa-sign-out-alt"></i> Salir</button>
+                <div class="mt-2">
+                    <div class="flex items-center gap-2 mb-1">
+                        <div class="w-7 h-7 rounded-full overflow-hidden bg-white shadow flex justify-center items-center"><img src="1.jpg" alt="Logo" class="w-full h-full object-cover"></div>
+                        <h2 class="text-sm font-bold uppercase tracking-wider text-blue-200">Portal Alumno</h2>
+                    </div>
+                    <p id="student-welcome" class="text-xl font-black"></p>
+                    <p id="student-account-display" class="text-blue-200 text-xs font-mono"></p>
+                </div>
+            </div>
+            <div class="p-5 mt-2">
+                <h3 class="font-bold text-sm mb-3 text-gray-500 uppercase tracking-wider">Mis Materias</h3>
+                <div id="student-classes" class="space-y-4"></div>
+            </div>
+        </div>
+
+        <!-- MODAL: CÁMARA / ESCANER QR CONTINUO (ANDROID) -->
+        <div id="qr-modal" class="absolute inset-0 bg-gray-900/90 backdrop-blur-sm z-[100] flex items-center justify-center hidden p-5">
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-3xl w-full relative shadow-2xl text-sm max-h-[90vh] overflow-y-auto scrollbar-hide">
+                <button onclick="closeQRModal()" class="absolute top-4 right-4 w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500"><i class="fas fa-times"></i></button>
+                <h3 class="text-lg font-bold mb-3 text-center" id="qr-modal-title">Escanear Código</h3>
+                
+                <!-- Visor de Cámara Continuo -->
+                <div id="reader" class="w-full aspect-square rounded-2xl overflow-hidden bg-black mb-3"></div>
+                <div id="qr-scan-status" class="text-center font-bold text-xs text-brand-600 mb-3">Cámara activa. Escaneando códigos...</div>
+
+                <select id="qr-sim-student" onchange="manualQRSelect(this.value)" class="w-full px-3 py-3 border rounded-xl mb-4 font-bold text-center dark:bg-gray-700 dark:border-gray-600"></select>
+                <div id="qr-sim-grade-area" class="hidden mb-4">
+                    <label class="block font-bold mb-1 text-xs text-center text-gray-500">Calificación Asignada:</label>
+                    <input type="number" id="qr-sim-grade" min="0" max="10" placeholder="0-10" class="w-24 mx-auto block px-3 py-2 border rounded-xl text-center font-black text-xl text-brand-600">
+                </div>
+                <button onclick="closeQRModal()" class="w-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 py-3 rounded-xl font-bold">Cerrar</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let users = JSON.parse(localStorage.getItem('edu_users')) || {};
+        let classes = JSON.parse(localStorage.getItem('edu_classes')) || [];
+        
+        let currentUser = null; 
+        let userRole = null; 
+        let currentClassId = null;
+        let activeTab = 'alumnos';
+        let qrMode = ''; 
+        let pendingAction = null;
+        let clockInterval;
+        let currentRubric = []; 
+        let evalRubricData = null;
+        let html5QrCode = null;
+        let scanCooldown = false;
+        let scannerUnlocked = false; 
+
+        // Restaurar sesión persistente al cargar la app
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedUser = localStorage.getItem('edu_current_user');
+            const savedRole = localStorage.getItem('edu_user_role');
+            if (savedUser && users[savedUser]) {
+                currentUser = savedUser;
+                userRole = savedRole;
+                if (userRole === 'profesor') {
+                    loadDashboard();
+                } else {
+                    // Si fuera alumno persistente
+                    loadStudentDashboard();
+                }
+            }
+        });
+
+        // --- SISTEMA DE TEMAS Y CERRAR MENÚS CLICK OUTSIDE ---
+        const themes = {
+            green: { 50:'#f0fdf4', 100:'#dcfce7', 200:'#bbf7d0', 500:'#22c55e', 600:'#16a34a', 700:'#15803d', 900:'#14532d' },
+            blue: { 50:'#eff6ff', 100:'#dbeafe', 200:'#bfdbfe', 500:'#3b82f6', 600:'#2563eb', 700:'#1d4ed8', 900:'#1e3a8a' },
+            purple: { 50:'#faf5ff', 100:'#f3e8ff', 200:'#e9d5ff', 500:'#a855f7', 600:'#9333ea', 700:'#7e22ce', 900:'#581c87' },
+            rose: { 50:'#fff1f2', 100:'#ffe4e6', 200:'#fecdd3', 500:'#f43f5e', 600:'#e11d48', 700:'#be123c', 900:'#881337' },
+            orange: { 50:'#fff7ed', 100:'#ffedd5', 200:'#fed7aa', 500:'#f97316', 600:'#ea580c', 700:'#c2410c', 900:'#7c2d12' },
+            teal: { 50:'#f0fdfa', 100:'#ccfbf1', 200:'#99f6e4', 500:'#14b8a6', 600:'#0d9488', 700:'#0f766e', 900:'#134e4a' },
+            yellow: { 50:'#fefce8', 100:'#fef9c3', 200:'#fef08a', 500:'#eab308', 600:'#ca8a04', 700:'#a16207', 900:'#713f12' },
+            indigo: { 50:'#eef2ff', 100:'#e0e7ff', 200:'#c7d2fe', 500:'#6366f1', 600:'#4f46e5', 700:'#4338ca', 900:'#312e81' },
+            cyan: { 50:'#ecfeff', 100:'#cffafe', 200:'#a5f3fc', 500:'#06b6d4', 600:'#0891b2', 700:'#0e7490', 900:'#164e63' },
+            slate: { 50:'#f8fafc', 100:'#f1f5f9', 200:'#e2e8f0', 500:'#64748b', 600:'#475569', 700:'#334155', 0xf0f7ff: '#0f172a' }
+        };
+        function applySavedTheme() {
+            const color = localStorage.getItem('app_color') || 'green';
+            const font = localStorage.getItem('app_font') || 'ui-sans-serif, system-ui, sans-serif';
+            const root = document.querySelector(':root');
+            if(themes[color]) for(let k in themes[color]) root.style.setProperty(`--c-${k}`, themes[color][k]);
+            root.style.setProperty('--app-font', font);
+        }
+        applySavedTheme();
+
+        function openThemeModal() { document.getElementById('theme-modal').classList.remove('hidden'); }
+        function closeThemeModal() { document.getElementById('theme-modal').classList.add('hidden'); }
+        function changeThemeColor(color) { localStorage.setItem('app_color', color); applySavedTheme(); }
+        function changeThemeFont(font) { localStorage.setItem('app_font', font); applySavedTheme(); }
+
+        function closeAllMenus() {
+            document.querySelectorAll('[id^="card-menu-"], [id^="act-menu-"]').forEach(m => m.classList.add('hidden'));
+            const detailMenu = document.getElementById('detail-menu');
+            if(detailMenu) detailMenu.classList.add('hidden');
+        }
+
+        // --- ALERTAS ---
+        function showAlert(title, message, type = 'success') {
+            const modal = document.getElementById('app-alert-modal');
+            document.getElementById('app-alert-title').innerText = title;
+            document.getElementById('app-alert-message').innerText = message;
+            const icon = document.getElementById('app-alert-icon');
+            if(type === 'success') icon.innerHTML = '<i class="fas fa-check-circle text-brand-500"></i>';
+            else if(type === 'error') icon.innerHTML = '<i class="fas fa-exclamation-circle text-red-500"></i>';
+            else icon.innerHTML = '<i class="fas fa-info-circle text-blue-500"></i>';
+            modal.classList.remove('hidden');
+        }
+        function closeAppAlert() { document.getElementById('app-alert-modal').classList.add('hidden'); }
+
+        // --- SISTEMA AUTORIZACIÓN (CON SESIÓN DE ESCANEO DESBLOQUEABLE) ---
+        function requestActionWithAuth(actionType, targetClassId = null, extraData = null) {
+            if (targetClassId) currentClassId = targetClassId;
+            const cls = classes.find(c => c.id === currentClassId);
+            let needsAuth = false;
+            let desc = "Ingresa tu contraseña de profesor para autorizar esta acción:";
+
+            if (actionType === 'eliminar_clase' || actionType === 'editar_clase') {
+                needsAuth = true; desc = `Acción protegida sobre "${cls.materia}". Autoriza con contraseña:`;
+            } else if (actionType === 'eliminar_actividad') {
+                needsAuth = true; desc = `Autoriza la eliminación de esta actividad:`;
+            } else if (actionType === 'eliminar_alumno' || actionType === 'eliminar_todos_alumnos') {
+                needsAuth = true; desc = `Autoriza la modificación de la lista de alumnos:`;
+            } else if (actionType === 'asistencia' || actionType === 'calificar') {
+                if (!scannerUnlocked) {
+                    needsAuth = true;
+                    desc = `Ingresa tu contraseña para desbloquear el escáner continuo de QR:`;
+                } else if (!isClassInProgress()) {
+                    needsAuth = true;
+                    desc = `Clase fuera de horario. Autoriza con contraseña:`;
+                }
+            } else if (actionType === 'toggle_attendance') {
+                needsAuth = true;
+                const name = cls.students.find(s=>s.account===extraData.accountId)?.name || 'Alumno';
+                desc = `Autorizar ajuste de asistencia para ${name} en fecha ${extraData.date}:`;
+            } else if (actionType === 'set_grade') {
+                needsAuth = true; desc = `Modificando calificación ya asignada. Autoriza:`;
+            }
+
+            if (needsAuth) {
+                pendingAction = { type: actionType, classId: targetClassId, data: extraData };
+                document.getElementById('auth-password-input').value = '';
+                document.getElementById('auth-modal-desc').innerText = desc;
+                document.getElementById('auth-modal').classList.remove('hidden');
+            } else {
+                executeAuthorizedAction({ type: actionType, classId: targetClassId, data: extraData });
+            }
+        }
+
+        function isClassInProgress() {
+            const cls = classes.find(c => c.id === currentClassId);
+            if(!cls) return false;
+            const now = new Date();
+            const currentDayNum = now.getDay().toString();
+            const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
+            return cls.days.includes(currentDayNum) && (currentTimeMinutes >= timeToMinutes(cls.start) && currentTimeMinutes <= timeToMinutes(cls.end));
+        }
+
+        function confirmAuthAction() {
+            const pwd = document.getElementById('auth-password-input').value;
+            if (users[currentUser] && users[currentUser].password === pwd) {
+                document.getElementById('auth-modal').classList.add('hidden');
+                if (pendingAction && (pendingAction.type === 'asistencia' || pendingAction.type === 'calificar')) {
+                    scannerUnlocked = true; 
+                }
+                executeAuthorizedAction(pendingAction);
+            } else { showAlert('Error', 'Contraseña incorrecta.', 'error'); }
+        }
+        function closeAuthModal() { document.getElementById('auth-modal').classList.add('hidden'); pendingAction = null; }
+
+        function executeAuthorizedAction(action) {
+            if (action.type === 'asistencia') startQRScan('asistencia');
+            else if (action.type === 'calificar') startQRScan('calificar');
+            else if (action.type === 'eliminar_clase') {
+                classes = classes.filter(c => c.id !== (action.classId || currentClassId));
+                localStorage.setItem('edu_classes', JSON.stringify(classes));
+                showAlert('Eliminado', 'La clase fue eliminada.', 'success');
+                loadDashboard();
+            } else if (action.type === 'editar_clase') editCurrentClass(action.classId || currentClassId);
+            else if (action.type === 'eliminar_actividad') {
+                const cls = classes.find(c => c.id === currentClassId);
+                cls.activities = cls.activities.filter(a => a.id !== action.data.actId);
+                localStorage.setItem('edu_classes', JSON.stringify(classes));
+                showAlert('Eliminado', 'La actividad fue eliminada.', 'success');
+                renderTabData('actividades');
+            }
+            else if (action.type === 'eliminar_alumno') {
+                const cls = classes.find(c => c.id === currentClassId);
+                cls.students = cls.students.filter(s => s.account !== action.data.account);
+                localStorage.setItem('edu_classes', JSON.stringify(classes));
+                renderTabData('alumnos');
+                showAlert('Eliminado', 'El alumno ha sido eliminado del grupo.', 'success');
+            }
+            else if (action.type === 'eliminar_todos_alumnos') {
+                const cls = classes.find(c => c.id === currentClassId);
+                cls.students = [];
+                localStorage.setItem('edu_classes', JSON.stringify(classes));
+                renderTabData('alumnos');
+                showAlert('Eliminado', 'Se han eliminado todos los alumnos del grupo.', 'success');
+            }
+            else if (action.type === 'toggle_attendance') executeToggleMatrix(action.data.date, action.data.accountId);
+            else if (action.type === 'set_grade') setGrade(action.data.actId, action.data.accountId, action.data.newValue);
+        }
+
+        // --- DASHBOARD CARDS & MENÚ DE 3 PUNTOS ---
+        function toggleCardMenu(classId) { closeAllMenus(); const menu = document.getElementById('card-menu-' + classId); if(menu) menu.classList.toggle('hidden'); }
+        function toggleDetailMenu() { const menu = document.getElementById('detail-menu'); if(menu) menu.classList.toggle('hidden'); }
+        function toggleActivityMenu(actId) { closeAllMenus(); const menu = document.getElementById('act-menu-' + actId); if(menu) menu.classList.toggle('hidden'); }
+
+        // --- GESTIÓN CLASES ---
+        function openCreateClassView() { document.getElementById('class-form-title').innerText = "Nueva Clase"; document.getElementById('edit-class-id').value = ""; document.querySelector('#view-create-class form').reset(); showView('view-create-class'); }
+        function editCurrentClass(id) { currentClassId = id; const cls = classes.find(c => c.id === id); if(!cls) return; document.getElementById('class-form-title').innerText = "Editar Clase"; document.getElementById('edit-class-id').value = cls.id; document.getElementById('class-materia').value = cls.materia; document.getElementById('class-nivel').value = cls.nivel; document.getElementById('class-color').value = cls.color; document.getElementById('class-start').value = cls.start; document.getElementById('class-end').value = cls.end; document.querySelectorAll('#class-days input').forEach(cb => cb.checked = cls.days.includes(cb.value)); showView('view-create-class'); }
+        function saveClass(e) {
+            e.preventDefault();
+            const days = Array.from(document.querySelectorAll('#class-days input:checked')).map(cb => cb.value);
+            if (days.length === 0) { showAlert('Atención', 'Selecciona al menos un día.', 'error'); return; }
+            const start = document.getElementById('class-start').value, end = document.getElementById('class-end').value;
+            if (timeToMinutes(end) <= timeToMinutes(start)) { showAlert('Error', 'Hora fin debe ser posterior.', 'error'); return; }
+
+            const editId = document.getElementById('edit-class-id').value;
+            if (editId) {
+                const cls = classes.find(c => c.id === editId);
+                if(cls) {
+                    cls.materia = document.getElementById('class-materia').value; cls.nivel = document.getElementById('class-nivel').value; cls.color = document.getElementById('class-color').value; cls.days = days; cls.start = start; cls.end = end;
+                    localStorage.setItem('edu_classes', JSON.stringify(classes)); showAlert('Éxito', 'Clase actualizada con éxito.', 'success');
+                }
+                loadDashboard();
+            } else {
+                classes.push({
+                    id: Date.now().toString(), teacher: currentUser, materia: document.getElementById('class-materia').value, color: document.getElementById('class-color').value,
+                    nivel: document.getElementById('class-nivel').value, days: days, start: start, end: end, students: [], activities: [], attendance: {} 
+                });
+                localStorage.setItem('edu_classes', JSON.stringify(classes));
+                e.target.reset(); loadDashboard(); showAlert('Éxito', 'Clase creada.', 'success');
+            }
+        }
+
+        // --- RÚBRICA ---
+        function toggleRubricBuilder() { const builder = document.getElementById('rubric-builder-area'); if(document.getElementById('add-act-type').value === 'rubrica') { builder.classList.remove('hidden'); currentRubric = []; renderRubricBuilder(); } else builder.classList.add('hidden'); }
+        function renderRubricBuilder() {
+            const list = document.getElementById('rubric-criteria-list'); list.innerHTML = ''; let sum = 0;
+            currentRubric.forEach((crit, i) => {
+                sum += parseFloat(crit.weight || 0);
+                list.innerHTML += `<div class="flex items-center gap-1 bg-white dark:bg-gray-800 p-1.5 border rounded"><input type="text" placeholder="Aspecto" value="${crit.name}" onchange="updateRC(${i}, 'name', this.value)" class="flex-1 text-[10px] bg-transparent outline-none font-bold"><input type="number" step="0.1" value="${crit.weight}" onchange="updateRC(${i}, 'weight', this.value)" class="w-12 text-center text-[10px] bg-gray-50 dark:bg-gray-900 border-0 outline-none font-bold text-brand-600"><button type="button" onclick="removeRC(${i})" class="text-red-500 px-1"><i class="fas fa-times text-[10px]"></i></button></div>`;
+            });
+            document.getElementById('rubric-total-sum').innerText = sum.toFixed(1); document.getElementById('rubric-total-sum').className = sum === 10 ? 'text-green-600' : 'text-red-500';
+        }
+        function addRubricCriterion() { currentRubric.push({name: '', weight: 0}); renderRubricBuilder(); }
+        function removeRC(i) { currentRubric.splice(i, 1); renderRubricBuilder(); }
+        function updateRC(i, field, val) { currentRubric[i][field] = field === 'weight' ? parseFloat(val) || 0 : val; renderRubricBuilder(); }
+        function divideRubricEqually() {
+            if(currentRubric.length === 0) return; const base = Math.floor((10 / currentRubric.length) * 100) / 100; let sum = 0;
+            currentRubric.forEach((c, i) => { if(i === currentRubric.length - 1) c.weight = parseFloat((10 - sum).toFixed(2)); else { c.weight = base; sum += base; } });
+            renderRubricBuilder();
+        }
+
+        function addActivity() {
+            const name = document.getElementById('add-act-name').value, type = document.getElementById('add-act-type').value; if(!name) return;
+            if(type === 'rubrica') {
+                const sum = currentRubric.reduce((acc, c) => acc + c.weight, 0);
+                if(Math.abs(sum - 10) > 0.05 || currentRubric.some(c => !c.name)) { showAlert('Error', 'Criterios incompletos o la suma no es 10.', 'error'); return; }
+            }
+            const cls = classes.find(c => c.id === currentClassId); if(!cls.activities) cls.activities = [];
+            const newAct = { id: Date.now().toString(), name, type, grades: {} };
+            if(type === 'rubrica') newAct.rubric = JSON.parse(JSON.stringify(currentRubric));
+            cls.activities.push(newAct); localStorage.setItem('edu_classes', JSON.stringify(classes));
+            document.getElementById('add-act-name').value = ''; document.getElementById('add-act-type').value = 'entregable';
+            toggleRubricBuilder(); renderTabData('actividades'); showAlert('Éxito', 'Actividad creada.', 'success');
+        }
+
+        // --- MATRIZ ASISTENCIA ---
+        function toggleMatrixAttendance(date, accountId) {
+            const today = new Date().toISOString().split('T')[0];
+            if (date === today && isClassInProgress()) executeToggleMatrix(date, accountId); else requestActionWithAuth('toggle_attendance', null, { date, accountId });
+        }
+        function executeToggleMatrix(date, accountId) {
+            const cls = classes.find(c => c.id === currentClassId); if(!cls.attendance[date]) cls.attendance[date] = {};
+            cls.attendance[date][accountId] = !cls.attendance[date][accountId]; localStorage.setItem('edu_classes', JSON.stringify(classes)); renderTabData('asistencia');
+        }
+
+        // --- RENDERIZACIÓN TABS (MATERIA) ---
+        function switchTab(tabName) {
+            activeTab = tabName;
+            ['alumnos', 'asistencia', 'actividades', 'calificaciones', 'reportes'].forEach(t => {
+                const cEl = document.getElementById('content-' + t), tEl = document.getElementById('tab-' + t);
+                if(cEl) cEl.classList.remove('active');
+                if(tEl) tEl.className = "flex-shrink-0 py-3.5 px-4 font-bold border-b-2 whitespace-nowrap border-transparent text-gray-500";
+            });
+            document.getElementById('content-' + tabName).classList.add('active');
+            document.getElementById('tab-' + tabName).className = "flex-shrink-0 py-3.5 px-4 font-bold border-b-2 whitespace-nowrap border-brand-600 text-brand-600";
+            renderTabData(tabName);
+        }
+
+        function renderTabData(tabName) {
+            const cls = classes.find(c => c.id === currentClassId);
+            if(tabName === 'alumnos') {
+                const list = document.getElementById('list-students'); list.innerHTML = '';
+                const counter = document.getElementById('students-counter');
+                const totalStudents = cls.students ? cls.students.length : 0;
+                if(counter) counter.innerText = `${totalStudents} alumno${totalStudents === 1 ? '' : 's'}`;
+
+                if(!cls.students || cls.students.length === 0) { list.innerHTML = '<div class="text-center text-gray-400 py-4 text-xs">Aún no hay alumnos.</div>'; return; }
+                cls.students.forEach(s => {
+                    list.innerHTML += `
+                        <div class="flex items-center justify-between bg-white dark:bg-gray-800 p-3 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 gap-2">
+                            <div onclick="showStudentStats('${s.account}')" class="cursor-pointer flex-1 min-w-0">
+                                <div class="font-bold text-xs hover:text-brand-600 truncate">${s.name} <i class="fas fa-chart-pie ml-1 text-gray-400"></i></div>
+                                <div class="text-[10px] text-gray-400 mt-0.5">Cta: <span class="font-mono">${s.account}</span></div>
+                            </div>
+                            <div class="flex items-center gap-1.5 flex-shrink-0">
+                                <button onclick="showStudentQR('${s.name}', '${s.account}')" class="w-8 h-8 rounded-full bg-brand-50 text-brand-600 flex justify-center items-center" title="Ver QR"><i class="fas fa-qrcode text-sm"></i></button>
+                                <button onclick="confirmDeleteStudent('${s.account}', '${s.name}')" class="w-8 h-8 rounded-full bg-red-50 text-red-600 flex justify-center items-center hover:bg-red-100 transition" title="Eliminar Alumno"><i class="fas fa-trash-alt text-xs"></i></button>
+                            </div>
+                        </div>`;
+                });
+            } else if(tabName === 'asistencia') {
+                const list = document.getElementById('matrix-attendance-container');
+                if(!cls.students || cls.students.length === 0) { list.innerHTML = '<div class="p-4 text-center text-xs text-gray-400">Sin alumnos.</div>'; return; }
+                
+                const today = new Date().toISOString().split('T')[0];
+                const nowDay = new Date().getDay().toString();
+                if (cls.days.includes(nowDay)) {
+                    if (!cls.attendance) cls.attendance = {};
+                    if (!cls.attendance[today]) {
+                        cls.attendance[today] = {};
+                        localStorage.setItem('edu_classes', JSON.stringify(classes));
+                    }
+                }
+
+                let dates = Object.keys(cls.attendance || {}).sort();
+                let html = '<table class="matrix-table w-full text-xs border-collapse"><thead class="bg-gray-50 dark:bg-gray-900 border-b dark:border-gray-700 text-gray-500"><tr class="font-bold uppercase tracking-wider text-[10px]"><th class="p-2 border-r dark:border-gray-700">Alumno</th>';
+                dates.forEach(d => html += `<th class="p-2 border-r dark:border-gray-700">${d.split('-')[2]}/${d.split('-')[1]}</th>`);
+                html += '</tr></thead><tbody>';
+                cls.students.forEach(s => {
+                    html += `<tr><td class="p-2 border-r border-b dark:border-gray-700 font-bold bg-white dark:bg-gray-800 sticky left-0 shadow-[2px_0_5px_rgba(0,0,0,0.02)]">${s.name.split(' ')[0]} ${s.name.split(' ')[1]?s.name.split(' ')[1][0]+'.':''}</td>`;
+                    dates.forEach(d => {
+                        const present = cls.attendance[d][s.account] === true;
+                        const icon = present ? '<i class="fas fa-check text-green-500"></i>' : '<i class="fas fa-times text-gray-300"></i>';
+                        html += `<td class="p-2 border-r border-b dark:border-gray-700 cursor-pointer hover:bg-brand-50 transition" onclick="toggleMatrixAttendance('${d}', '${s.account}')">${icon}</td>`;
+                    });
+                    html += '</tr>';
+                });
+                html += '</tbody></table>';
+                list.innerHTML = html;
+            } else if(tabName === 'actividades') {
+                const list = document.getElementById('list-activities'); list.innerHTML = '';
+                if(!cls.activities || cls.activities.length === 0) return;
+                cls.activities.forEach(a => {
+                    const badgeClr = a.type === 'rubrica' ? 'bg-purple-100 text-purple-700' : (a.type==='calificacion' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700');
+                    list.innerHTML += `
+                        <div class="bg-white dark:bg-gray-800 p-3 pr-10 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex justify-between items-center relative overflow-visible">
+                            <div class="absolute left-0 top-0 bottom-0 w-1.5 ${badgeClr.split(' ')[0].replace('100','500')} rounded-l-2xl"></div>
+                            <div class="pl-2 flex-1">
+                                <div class="font-bold text-xs pr-4">${a.name}</div>
+                                <span class="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded mt-1 inline-block ${badgeClr}">${a.type}</span>
+                            </div>
+                            
+                            <div class="absolute right-2 top-3 z-10">
+                                <button onclick="event.stopPropagation(); toggleActivityMenu('${a.id}')" class="text-gray-400 hover:text-gray-600 p-1 w-8 h-8 flex items-center justify-center rounded-full transition"><i class="fas fa-ellipsis-v"></i></button>
+                                <div id="act-menu-${a.id}" class="hidden absolute right-0 top-8 bg-white dark:bg-gray-700 shadow-xl rounded-xl p-1 text-left text-xs min-w-[120px] border dark:border-gray-600 z-50">
+                                    <button onclick="event.stopPropagation(); toggleActivityMenu('${a.id}'); openEditActivity('${a.id}')" class="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg flex items-center gap-2 text-gray-800 dark:text-gray-200"><i class="fas fa-edit text-blue-500"></i> Editar</button>
+                                    <button onclick="event.stopPropagation(); toggleActivityMenu('${a.id}'); requestActionWithAuth('eliminar_actividad', null, {actId: '${a.id}'})" class="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg flex items-center gap-2 text-red-500"><i class="fas fa-trash-alt"></i> Eliminar</button>
+                                </div>
+                            </div>
+                        </div>`;
+                });
+            } else if(tabName === 'calificaciones') {
+                const select = document.getElementById('eval-act-select'); const curr = select.value; select.innerHTML = '<option value="">-- Elige una actividad --</option>';
+                if(cls.activities) cls.activities.forEach(a => select.innerHTML += `<option value="${a.id}">${a.name} (${a.type})</option>`);
+                select.value = curr; renderEvalList();
+            } else if(tabName === 'reportes') {
+                renderGroupOverview();
+            }
+        }
+
+        // --- SISTEMA DE CREDENCIALES QR PARA DESCARGAR PDF CON DIÁLOGO NATIVO ROBUSTO ---
+        function openPrintableQRs() {
+            const cls = classes.find(c => c.id === currentClassId);
+            if (!cls.students || cls.students.length === 0) {
+                showAlert('Atención', 'No hay alumnos registrados en este grupo.', 'info');
+                return;
+            }
+            const grid = document.getElementById('print-qrs-grid');
+            grid.innerHTML = '';
+            cls.students.forEach((s, index) => {
+                const cardId = `qr-print-card-${index}`;
+                grid.innerHTML += `
+                    <div class="bg-white border-2 border-dashed border-gray-300 rounded-2xl p-3 text-center flex flex-col items-center justify-between shadow-xs">
+                        <div class="text-[10px] font-bold text-gray-400 uppercase">The Tux´s</div>
+                        <div class="font-bold text-xs text-gray-800 truncate w-full mt-1">${s.name}</div>
+                        <div class="my-2 p-1 bg-white rounded-lg shadow-inner" id="${cardId}"></div>
+                        <div class="text-[10px] font-mono text-gray-600 bg-gray-100 px-2 py-0.5 rounded">Cta: ${s.account}</div>
+                    </div>
+                `;
+            });
+            document.getElementById('print-qr-modal').classList.remove('hidden');
+
+            setTimeout(() => {
+                cls.students.forEach((s, index) => {
+                    const cardId = `qr-print-card-${index}`;
+                    const el = document.getElementById(cardId);
+                    if (el && el.children.length === 0) {
+                        new QRCode(el, {
+                            text: s.account,
+                            width: 80,
+                            height: 80,
+                            colorDark: "#000000",
+                            colorLight: "#ffffff",
+                            correctLevel: QRCode.CorrectLevel.H
+                        });
+                    }
+                });
+            }, 100);
+        }
+
+        function closePrintableQRs() {
+            document.getElementById('print-qr-modal').classList.add('hidden');
+        }
+
+        async function downloadQRAsPDF() {
+            const element = document.getElementById('print-qr-content-area');
+            const opt = {
+                margin: 0.5,
+                filename: 'Credenciales_QR_TheTuxs.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+
+            try {
+                const tauriDialog = window.__TAURI__?.dialog;
+                const tauriFs = window.__TAURI__?.fs;
+
+                let filePath = null;
+                if (tauriDialog && typeof tauriDialog.save === 'function') {
+                    filePath = await tauriDialog.save({
+                        defaultPath: 'Credenciales_QR_TheTuxs.pdf',
+                        filters: [{ name: 'PDF', extensions: ['pdf'] }]
+                    });
+                    if (!filePath) return;
+                }
+
+                const pdfWorker = html2pdf().from(element).set(opt);
+                const pdfBlob = await pdfWorker.output('blob');
+                const arrayBuffer = await pdfBlob.arrayBuffer();
+                const uint8Array = new Uint8Array(arrayBuffer);
+
+                if (tauriFs && typeof tauriFs.writeFile === 'function' && filePath) {
+                    await tauriFs.writeFile(filePath, uint8Array);
+                    showAlert('Éxito', 'Credenciales guardadas correctamente.', 'success');
+                } else {
+                    pdfWorker.save();
+                    showAlert('Éxito', 'PDF descargado con éxito.', 'success');
+                }
+                closePrintableQRs();
+            } catch (error) {
+                console.error(error);
+                showAlert('Error', 'No se pudo guardar el archivo PDF.', 'error');
+            }
+        }
+
+        async function generatePDFReport() {
+            const cls = classes.find(c => c.id === currentClassId);
+            if (!cls) return;
+
+            const dates = Object.keys(cls.attendance || {});
+            const totalDates = dates.length;
+            const activities = cls.activities || [];
+
+            const reportDiv = document.createElement('div');
+            reportDiv.className = "p-6 bg-white text-gray-800 font-sans";
+            
+            let actHeaders = '';
+            activities.forEach(a => actHeaders += `<th style="padding: 6px; border: 1px solid #ddd; text-align: center;">${a.name}</th>`);
+
+            let rowsHtml = '';
+            (cls.students || []).forEach(s => {
+                let attendedCount = 0;
+                dates.forEach(d => { if(cls.attendance[d][s.account]) attendedCount++; });
+                let attPct = totalDates > 0 ? Math.round((attendedCount / totalDates) * 100) : 100;
+
+                let sumGrades = 0;
+                let actCellsPDF = '';
+                activities.forEach(a => {
+                    let val = a.grades?.[s.account];
+                    let numVal = 0;
+                    let displayVal = '-';
+                    if(a.type === 'entregable') {
+                        if(val === 'entregado') { numVal = 10; displayVal = '10'; }
+                        else { numVal = 0; displayVal = '0'; }
+                    } else {
+                        if(val !== undefined && val !== '' && !isNaN(val)) {
+                            numVal = parseFloat(val);
+                            displayVal = numVal.toFixed(1);
+                        } else {
+                            numVal = 0;
+                            displayVal = '0';
+                        }
+                    }
+                    sumGrades += numVal;
+                    actCellsPDF += `<td style="padding: 6px; border: 1px solid #ddd; text-align: center;">${displayVal}</td>`;
+                });
+                let avg = activities.length > 0 ? (sumGrades / activities.length).toFixed(1) : '0.0';
+
+                rowsHtml += `
+                    <tr>
+                        <td style="padding: 6px; border: 1px solid #ddd;">${s.name} <br/><span style="font-size:9px; color:#666;">Cta: ${s.account}</span></td>
+                        <td style="padding: 6px; border: 1px solid #ddd; text-align: center;"><b>${attPct}%</b> (${attendedCount}/${totalDates})</td>
+                        ${actCellsPDF}
+                        <td style="padding: 6px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: #16a34a;">${avg}</td>
+                    </tr>`;
+            });
+
+            reportDiv.innerHTML = `
+                <h1 style="font-size: 18px; font-weight: bold; margin-bottom: 5px;">Reporte General de Clase: ${cls.materia}</h1>
+                <p style="font-size: 11px; color: #666; margin-bottom: 15px;">Nivel: ${cls.nivel} | Horario: ${cls.start} - ${cls.end} | Fecha de emisión: ${new Date().toLocaleDateString()}</p>
+                <hr style="border: 1px solid #ddd; margin-bottom: 15px;" />
+                <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+                    <thead>
+                        <tr style="background: #f3f4f6; text-align: left;">
+                            <th style="padding: 6px; border: 1px solid #ddd;">Alumno</th>
+                            <th style="padding: 6px; border: 1px solid #ddd; text-align: center;">Asistencia</th>
+                            ${actHeaders}
+                            <th style="padding: 6px; border: 1px solid #ddd; text-align: center;">Promedio</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+            `;
+
+            const opt = {
+                margin: 0.4,
+                filename: `Reporte_Matriz_${cls.materia.replace(/\s+/g, '_')}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' }
+            };
+
+            try {
+                const tauriDialog = window.__TAURI__?.dialog;
+                const tauriFs = window.__TAURI__?.fs;
+
+                let filePath = null;
+                if (tauriDialog && typeof tauriDialog.save === 'function') {
+                    filePath = await tauriDialog.save({
+                        defaultPath: `Reporte_Matriz_${cls.materia.replace(/\s+/g, '_')}.pdf`,
+                        filters: [{ name: 'PDF', extensions: ['pdf'] }]
+                    });
+                    if (!filePath) return;
+                }
+
+                const pdfWorker = html2pdf().from(reportDiv).set(opt);
+                const pdfBlob = await pdfWorker.output('blob');
+                const arrayBuffer = await pdfBlob.arrayBuffer();
+                const uint8Array = new Uint8Array(arrayBuffer);
+
+                if (tauriFs && typeof tauriFs.writeFile === 'function' && filePath) {
+                    await tauriFs.writeFile(filePath, uint8Array);
+                    showAlert('Éxito', 'Reporte guardado con éxito.', 'success');
+                } else {
+                    pdfWorker.save();
+                    showAlert('Éxito', 'Reporte descargado con éxito.', 'success');
+                }
+            } catch (error) {
+                console.error(error);
+                showAlert('Error', 'No se pudo generar el reporte PDF.', 'error');
+            }
+        }
+
+        // --- SISTEMA DE ELIMINACIÓN DE ALUMNOS ---
+        function confirmDeleteStudent(account, name) {
+            requestActionWithAuth('eliminar_alumno', null, { account });
+        }
+        function confirmDeleteAllStudents() {
+            const cls = classes.find(c => c.id === currentClassId);
+            if (!cls.students || cls.students.length === 0) {
+                showAlert('Aviso', 'No hay alumnos en este grupo.', 'info');
+                return;
+            }
+            requestActionWithAuth('eliminar_todos_alumnos');
+        }
+
+        // --- SISTEMA EVALUACIÓN ---
+        function renderEvalList() {
+            const actId = document.getElementById('eval-act-select').value;
+            const list = document.getElementById('list-evaluations'); list.innerHTML = '';
+            if(!actId) { list.innerHTML = '<div class="text-center text-gray-400 py-3 text-xs">Selecciona actividad.</div>'; return; }
+            const cls = classes.find(c => c.id === currentClassId); const act = cls.activities.find(a => a.id === actId);
+            
+            cls.students.forEach(s => {
+                const val = act.grades[s.account] || ''; let inputHtml = '';
+                if(act.type === 'entregable') {
+                    const done = val === 'entregado';
+                    inputHtml = `<button onclick="setGradeProtected('${actId}', '${s.account}', '${done ? 'no_entregado' : 'entregado'}', '${val}')" class="px-2 py-1 text-[10px] font-bold uppercase rounded-lg ${done ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}">${done ? 'Entregado' : 'Pendiente'}</button>`;
+                } else if(act.type === 'rubrica') {
+                    const scored = val !== '';
+                    inputHtml = `<button onclick="openRubricEval('${actId}', '${s.account}')" class="px-2 py-1 text-[10px] font-bold rounded-lg border ${scored ? 'bg-brand-50 border-brand-200 text-brand-700' : 'bg-white border-gray-300'}"><i class="fas fa-tasks mr-1"></i> ${scored ? val+'/10' : 'Evaluar'}</button>`;
+                } else {
+                    inputHtml = `<input type="number" onchange="setGradeProtected('${actId}', '${s.account}', this.value, '${val}')" value="${val}" min="0" max="10" class="w-12 px-1 py-1 text-center border rounded-lg outline-none font-bold text-xs">`;
+                }
+                list.innerHTML += `<div class="flex items-center justify-between py-1.5 border-b dark:border-gray-700 last:border-0 text-xs px-1"><span class="font-medium">${s.name}</span>${inputHtml}</div>`;
+            });
+        }
+
+        function openRubricEval(actId, accId) {
+            const act = classes.find(c=>c.id===currentClassId).activities.find(a=>a.id===actId);
+            evalRubricData = { actId, accId, rubric: act.rubric, scores: act.rubricGrades?.[accId] || {} };
+            document.getElementById('rubric-eval-student').innerText = act.name;
+            const list = document.getElementById('rubric-eval-list'); list.innerHTML = '';
+            act.rubric.forEach((crit, i) => {
+                const score = evalRubricData.scores[i] !== undefined ? evalRubricData.scores[i] : crit.weight;
+                list.innerHTML += `<div class="mb-3 bg-gray-50 dark:bg-gray-900 p-3 rounded-xl border"><div class="flex justify-between mb-1"><span class="font-bold text-xs">${crit.name}</span><span class="text-xs font-black text-brand-600"><span id="rb-score-val-${i}">${score}</span> / ${crit.weight}</span></div><input type="range" min="0" max="${crit.weight}" step="0.1" value="${score}" oninput="updateRubricScore(${i}, this.value)" class="w-full"></div>`;
+            });
+            updateRubricTotalDisplay(); document.getElementById('rubric-eval-modal').classList.remove('hidden');
+        }
+        function updateRubricScore(idx, val) { evalRubricData.scores[idx] = parseFloat(val); document.getElementById(`rb-score-val-${idx}`).innerText = val; updateRubricTotalDisplay(); }
+        function updateRubricTotalDisplay() { let total = 0; evalRubricData.rubric.forEach((c, i) => { total += evalRubricData.scores[i] !== undefined ? evalRubricData.scores[i] : c.weight; }); document.getElementById('rubric-eval-total').innerText = total.toFixed(1); }
+        function closeRubricEvalModal() { document.getElementById('rubric-eval-modal').classList.add('hidden'); }
+        function saveRubricEval() {
+            const act = classes.find(c=>c.id===currentClassId).activities.find(a=>a.id===evalRubricData.actId);
+            if(!act.rubricGrades) act.rubricGrades = {}; act.rubricGrades[evalRubricData.accId] = evalRubricData.scores;
+            let total = 0; act.rubric.forEach((c, i) => total += evalRubricData.scores[i] !== undefined ? evalRubricData.scores[i] : c.weight);
+            setGrade(evalRubricData.actId, evalRubricData.accId, total.toFixed(1)); closeRubricEvalModal();
+        }
+
+        function setGradeProtected(actId, accId, newV, oldV) { if (oldV !== '' && oldV !== undefined && oldV !== 'no_entregado') requestActionWithAuth('set_grade', null, { actId, accountId: accId, newValue: newV }); else setGrade(actId, accId, newV); }
+        function setGrade(actId, accountId, value) {
+            const act = classes.find(c=>c.id===currentClassId).activities.find(a=>a.id===actId);
+            if(!act.grades) act.grades = {}; act.grades[accountId] = value;
+            localStorage.setItem('edu_classes', JSON.stringify(classes)); if(activeTab === 'calificaciones') renderEvalList();
+        }
+
+        // --- DASHBOARD CARGA PRINCIPAL ---
+        function loadDashboard() {
+            showView('view-dashboard');
+            document.getElementById('dash-welcome').innerText = "Hola, " + users[currentUser].name.split(' ')[0]; document.getElementById('dash-date').innerText = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            const myClasses = classes.filter(c => c.teacher === currentUser);
+            
+            if (myClasses.length === 0) { document.getElementById('empty-state').classList.remove('hidden'); document.getElementById('dashboard-content').classList.add('hidden'); return; }
+            document.getElementById('empty-state').classList.add('hidden'); document.getElementById('dashboard-content').classList.remove('hidden');
+
+            const now = new Date(); const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
+            const todayDiv = document.getElementById('today-classes'); const allDiv = document.getElementById('all-classes');
+            todayDiv.innerHTML = ''; allDiv.innerHTML = ''; let hasToday = false;
+
+            myClasses.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start)).forEach(cls => {
+                allDiv.innerHTML += `
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 relative text-center">
+                        <div class="absolute top-2 right-2 z-20">
+                            <button onclick="event.stopPropagation(); toggleCardMenu('${cls.id}')" class="text-gray-400 p-1"><i class="fas fa-ellipsis-v"></i></button>
+                            <div id="card-menu-${cls.id}" class="hidden absolute right-0 top-8 bg-white dark:bg-gray-700 shadow-xl rounded-xl p-1 text-left text-xs min-w-[110px] border dark:border-gray-600">
+                                <button onclick="event.stopPropagation(); toggleCardMenu('${cls.id}'); requestActionWithAuth('editar_clase', '${cls.id}')" class="w-full text-left px-3 py-1.5 hover:bg-gray-100 rounded-lg"><i class="fas fa-edit text-blue-500 mr-1"></i> Editar</button>
+                                <button onclick="event.stopPropagation(); toggleCardMenu('${cls.id}'); requestActionWithAuth('eliminar_clase', '${cls.id}')" class="w-full text-left px-3 py-1.5 hover:bg-gray-100 rounded-lg text-red-500"><i class="fas fa-trash-alt mr-1"></i> Eliminar</button>
+                            </div>
+                        </div>
+                        <div onclick="loadClassDetail('${cls.id}')" class="cursor-pointer pt-2">
+                            <div class="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center text-white text-xl font-bold" style="background-color: ${cls.color}">${cls.materia.charAt(0).toUpperCase()}</div>
+                            <div class="font-bold text-sm truncate">${cls.materia}</div><div class="text-xs text-gray-500 mt-1">${cls.nivel}</div>
+                        </div>
+                    </div>`;
+
+                if (cls.days.includes(now.getDay().toString())) {
+                    hasToday = true;
+                    const inProgress = currentTimeMinutes >= timeToMinutes(cls.start) && currentTimeMinutes <= timeToMinutes(cls.end);
+                    todayDiv.innerHTML += `
+                        <div class="p-4 rounded-2xl shadow-sm flex items-center gap-4 cursor-pointer relative bg-white dark:bg-gray-800 border ${inProgress ? 'border-2' : 'border-gray-100 opacity-80'}" style="border-color: ${inProgress ? cls.color : ''}">
+                            ${inProgress ? `<div class="absolute top-3 right-3 text-[10px] font-bold px-2 py-1 bg-red-50 text-red-600 rounded-full flex items-center border border-red-100"><div class="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5 animate-pulse"></div>Curso</div>` : ''}
+                            <div class="w-2 h-14 rounded-full" style="background-color: ${cls.color}"></div>
+                            <div class="flex-1 pr-14" onclick="loadClassDetail('${cls.id}')">
+                                <div class="font-bold text-base leading-tight mb-1">${cls.materia}</div><div class="text-xs text-gray-500 font-medium"><i class="far fa-clock mr-1"></i> ${cls.start} - ${cls.end}</div>
+                            </div>
+                        </div>`;
+                }
+            });
+            if (!hasToday) todayDiv.innerHTML = '<div class="bg-white rounded-2xl p-4 text-center text-sm text-gray-500">Día libre.</div>';
+        }
+
+        function loadClassDetail(id) {
+            currentClassId = id; const cls = classes.find(c => c.id === id);
+            document.getElementById('detail-header').style.backgroundColor = cls.color; document.getElementById('detail-materia').innerText = cls.materia; document.getElementById('detail-horario').innerText = `${cls.nivel} | ${cls.start} - ${cls.end}`;
+            
+            const now = new Date(); const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
+            const inProgress = cls.days.includes(now.getDay().toString()) && (currentTimeMinutes >= timeToMinutes(cls.start) && currentTimeMinutes <= timeToMinutes(cls.end));
+            document.getElementById('detail-status').classList.toggle('hidden', !inProgress);
+            
+            switchTab('alumnos'); showView('view-class-detail');
+        }
+
+        // --- SISTEMA DE ALUMNOS Y QR REAL ---
+        function addStudent() {
+            const name = document.getElementById('add-student-name').value, acc = document.getElementById('add-student-account').value; if(!name || !acc) return;
+            const cls = classes.find(c => c.id === currentClassId); if(!cls.students) cls.students = [];
+            if(cls.students.some(s => s.account === acc)){ showAlert('Error', 'Esta cuenta ya está registrada.', 'error'); return; }
+            cls.students.push({ name, account: acc }); localStorage.setItem('edu_classes', JSON.stringify(classes));
+            document.getElementById('add-student-name').value = ''; document.getElementById('add-student-account').value = ''; renderTabData('alumnos');
+        }
+
+        // --- LECTURA MASIVA ILIMITADA Y ROBUSTA (EXCEL, CSV, TXT) ---
+        function simulateExcelUpload() {
+            const fileInput = document.getElementById('excel-file-input');
+            if (!fileInput.files.length) {
+                showAlert('Error', 'Selecciona un archivo Excel (.xlsx), CSV o TXT primero.', 'error');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                    
+                    const cls = classes.find(c => c.id === currentClassId);
+                    if (!cls.students) cls.students = [];
+                    
+                    let count = 0;
+                    json.forEach((row, index) => {
+                        if (row && row.length >= 2) {
+                            const name = String(row[0] || '').trim();
+                            const account = String(row[1] || '').trim();
+                            
+                            if (index === 0 && (name.toLowerCase().includes('nombre') || account.toLowerCase().includes('matr') || account.toLowerCase().includes('cuenta'))) {
+                                return;
+                            }
+                            
+                            if (name && account && !cls.students.some(st => st.account === account)) {
+                                cls.students.push({ name, account });
+                                count++;
+                            }
+                        }
+                    });
+                    
+                    localStorage.setItem('edu_classes', JSON.stringify(classes));
+                    renderTabData('alumnos');
+                    fileInput.value = '';
+                    showAlert('Éxito', `Se importaron ${count} alumnos masivamente sin límite.`, 'success');
+                } catch (err) {
+                    showAlert('Error', 'No se pudo procesar el archivo. Comprueba que tenga el formato correcto.', 'error');
+                }
+            };
+            
+            reader.onerror = function() {
+                showAlert('Error', 'No se pudo leer el archivo.', 'error');
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+
+        function showStudentQR(n, a) {
+            document.getElementById('modal-qr-name').innerText = n;
+            document.getElementById('modal-qr-account').innerText = "Cta: " + a;
+            const container = document.getElementById('qrcode-container');
+            container.innerHTML = '';
+            new QRCode(container, {
+                text: a,
+                width: 130,
+                height: 130,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+            document.getElementById('student-qr-modal').classList.remove('hidden');
+        }
+        function closeStudentQRModal() { document.getElementById('student-qr-modal').classList.add('hidden'); }
+
+        // --- CÁMARA QR ESCANER CONTINUO (HTML5-QRCODE) ---
+        function startQRScan(mode) {
+            qrMode = mode; 
+            const cls = classes.find(c => c.id === currentClassId);
+            if(!cls.students || cls.students.length === 0){ showAlert('Atención', 'Agrega alumnos primero.', 'error'); return; }
+            
+            if(mode === 'calificar') {
+                const actId = document.getElementById('eval-act-select').value; 
+                if(!actId) { showAlert('Error', 'Selecciona actividad', 'error'); return; }
+                const act = cls.activities.find(a => a.id === actId);
+                if(act.type === 'calificacion') { 
+                    document.getElementById('qr-sim-grade-area').classList.remove('hidden'); 
+                    document.getElementById('qr-sim-grade').value=''; 
+                } else {
+                    document.getElementById('qr-sim-grade-area').classList.add('hidden');
+                }
+            } else {
+                document.getElementById('qr-sim-grade-area').classList.add('hidden');
+            }
+            
+            document.getElementById('qr-modal-title').innerText = mode === 'asistencia' ? 'Pase de Lista Continuo (Cámara)' : 'Evaluación Continua (Cámara)';
+            const sel = document.getElementById('qr-sim-student'); 
+            sel.innerHTML = '<option value="">-- O selecciona manualmente --</option>';
+            cls.students.forEach(s => sel.innerHTML += `<option value="${s.account}">${s.name} (${s.account})</option>`);
+            
+            document.getElementById('qr-modal').classList.remove('hidden');
+            document.getElementById('qr-scan-status').innerHTML = '<span class="text-brand-600 font-bold">Cámara activa. Escaneando códigos...</span>';
+
+            setTimeout(() => {
+                try {
+                    if(!html5QrCode) {
+                        html5QrCode = new Html5Qrcode("reader");
+                    }
+                    html5QrCode.start(
+                        { facingMode: "environment" },
+                        { fps: 10, qrbox: { width: 200, height: 200 } },
+                        (decodedText) => { handleContinuousScannedQR(decodedText); },
+                        (errorMessage) => {}
+                    ).catch(err => {
+                        document.getElementById('qr-scan-status').innerText = "Cámara no disponible. Usa la selección manual.";
+                    });
+                } catch(e) {
+                    document.getElementById('qr-scan-status').innerText = "Modo manual activado.";
+                }
+            }, 300);
+        }
+
+        function closeQRModal() {
+            scannerUnlocked = false; 
+            if(html5QrCode) {
+                html5QrCode.stop().then(() => { 
+                    html5QrCode.clear(); 
+                    html5QrCode = null;
+                }).catch(() => {
+                    html5QrCode = null;
+                });
+            }
+            document.getElementById('qr-modal').classList.add('hidden');
+        }
+
+        function manualQRSelect(acc) {
+            if(acc) handleContinuousScannedQR(acc);
+        }
+
+        function handleContinuousScannedQR(account) {
+            if (scanCooldown) return;
+            
+            const cls = classes.find(c => c.id === currentClassId);
+            const student = cls.students.find(s => s.account === account || s.account.trim() === account.trim());
+            const statusEl = document.getElementById('qr-scan-status');
+
+            if(!student) {
+                scanCooldown = true;
+                statusEl.innerHTML = `<span class="text-red-500 font-bold">⚠️ Matrícula "${account}" no encontrada en el grupo.</span>`;
+                setTimeout(() => { scanCooldown = false; }, 2500);
+                return;
+            }
+
+            scanCooldown = true;
+            const today = new Date().toISOString().split('T')[0];
+
+            if(qrMode === 'asistencia') {
+                executeToggleMatrix(today, student.account);
+                statusEl.innerHTML = `<span class="text-green-600 font-bold text-sm">✅ ¡Asistencia registrada: ${student.name}!</span>`;
+            } else if(qrMode === 'calificar') {
+                const actId = document.getElementById('eval-act-select').value;
+                const act = cls.activities.find(a => a.id === actId);
+                const val = act.type === 'calificacion' ? (document.getElementById('qr-sim-grade').value || '10') : 'entregado';
+                setGrade(actId, student.account, val);
+                statusEl.innerHTML = `<span class="text-blue-600 font-bold text-sm">✅ Calificación guardada para ${student.name}.</span>`;
+            }
+
+            setTimeout(() => {
+                scanCooldown = false;
+                statusEl.innerHTML = '<span class="text-brand-600 font-bold">Listos para el siguiente alumno...</span>';
+            }, 2000);
+        }
+
+        // --- VISTA GENERAL DEL GRUPO (MATRIZ Y PROMEDIOS) ---
+        function renderGroupOverview() {
+            const cls = classes.find(c => c.id === currentClassId);
+            const container = document.getElementById('group-overview-container');
+            if(!container) return;
+            if(!cls.students || cls.students.length === 0) {
+                container.innerHTML = '<div class="p-4 text-xs text-center text-gray-400">No hay alumnos en el grupo.</div>';
+                return;
+            }
+
+            const dates = Object.keys(cls.attendance || {});
+            const totalDates = dates.length;
+            const activities = cls.activities || [];
+
+            let html = '<div class="overflow-x-auto"><table class="w-full text-xs border-collapse"><thead class="bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-300 border-b dark:border-gray-700"><tr class="text-[10px] font-bold uppercase tracking-wider text-left"><th class="p-2.5 sticky left-0 bg-gray-100 dark:bg-gray-900 z-10">Alumno</th><th class="p-2.5">Asistencia</th>';
+            activities.forEach(a => html += `<th class="p-2.5 text-center">${a.name}</th>`);
+            html += '<th class="p-2.5 text-center font-black">Promedio</th></tr></thead><tbody class="divide-y dark:divide-gray-700">';
+
+            cls.students.forEach(s => {
+                let attendedCount = 0;
+                dates.forEach(d => {
+                    if(cls.attendance[d][s.account]) attendedCount++;
+                });
+                const attPct = totalDates > 0 ? Math.round((attendedCount / totalDates) * 100) : 100;
+
+                let sumGrades = 0;
+                let actCells = '';
+                activities.forEach(a => {
+                    let val = a.grades?.[s.account];
+                    let numVal = 0;
+                    let displayVal = '-';
+                    if(a.type === 'entregable') {
+                        if(val === 'entregado') { numVal = 10; displayVal = '10'; }
+                        else { numVal = 0; displayVal = '0'; }
+                    } else {
+                        if(val !== undefined && val !== '' && !isNaN(val)) {
+                            numVal = parseFloat(val);
+                            displayVal = numVal.toFixed(1);
+                        } else {
+                            numVal = 0;
+                            displayVal = '0';
+                        }
+                    }
+                    sumGrades += numVal;
+                    actCells += `<td class="p-2.5 text-center font-medium">${displayVal}</td>`;
+                });
+
+                const avg = activities.length > 0 ? (sumGrades / activities.length).toFixed(1) : '0.0';
+                const attColor = attPct < 80 ? 'text-red-500' : 'text-green-500';
+
+                html += `
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                        <td class="p-2.5 font-semibold sticky left-0 bg-white dark:bg-gray-800 whitespace-nowrap">${s.name} <div class="text-[9px] font-mono text-gray-400">Cta: ${s.account}</div></td>
+                        <td class="p-2.5 whitespace-nowrap"><span class="font-bold ${attColor}">${attPct}%</span> <span class="text-[10px] text-gray-400">(${attendedCount}/${totalDates})</span></td>
+                        ${actCells}
+                        <td class="p-2.5 text-center font-black text-brand-600">${avg}</td>
+                    </tr>`;
+            });
+
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+        }
+
+        // --- MANEJO BÁSICO (LOGIN, VIEWS, PERSISTENCIA) ---
+        function switchLoginTab() { /* El login de alumnos ahora es el portal por hotspot */ }
+        function register(e) { e.preventDefault(); const n = document.getElementById('reg-name').value, em = document.getElementById('reg-email').value, pw = document.getElementById('reg-pwd').value; if(users[em]) { showAlert('Error','Cuenta existente','error'); return; } users[em] = {password:pw,name:n}; localStorage.setItem('edu_users', JSON.stringify(users)); showAlert('Éxito','Registro completado','success'); e.target.reset(); showView('view-login'); }
+        
+        function loginProfesor(e) { 
+            e.preventDefault(); 
+            const em = document.getElementById('login-email').value; 
+            const pw = document.getElementById('login-pwd').value; 
+            if(users[em] && users[em].password === pw){ 
+                currentUser = em; 
+                userRole = 'profesor'; 
+                localStorage.setItem('edu_current_user', em);
+                localStorage.setItem('edu_user_role', 'profesor');
+                document.getElementById('login-pwd').value=''; 
+                loadDashboard(); 
+            } else {
+                showAlert('Error', 'Credenciales inválidas', 'error');
+            }
+        }
+
+        function loginAlumno(e) { e.preventDefault(); const acc = document.getElementById('login-cuenta').value; let found = null; for(let c of classes) { if(c.students){ let s = c.students.find(x=>x.account===acc); if(s) { found = s; break; } } } if(found){ currentUser = found; userRole = 'alumno'; document.getElementById('login-cuenta').value=''; loadStudentDashboard(); } else showAlert('Error', 'Cuenta no registrada', 'error'); }
+        
+        function logout() { 
+            currentUser = null; 
+            userRole = null; 
+            currentClassId = null; 
+            localStorage.removeItem('edu_current_user');
+            localStorage.removeItem('edu_user_role');
+            clearInterval(clockInterval); 
+            showView('view-login'); 
+        }
+
+        function showView(vId) { document.querySelectorAll('.view').forEach(v => v.classList.remove('active')); document.getElementById(vId).classList.add('active'); document.querySelector('.mobile-container').scrollTo(0,0); if(vId === 'view-dashboard') startClock(); else clearInterval(clockInterval); }
+        function toggleDarkMode() { document.documentElement.classList.toggle('dark'); localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light'); }
+        if(localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark');
+        function startClock() { updateClock(); clearInterval(clockInterval); clockInterval = setInterval(()=>{ updateClock(); if(document.getElementById('view-dashboard').classList.contains('active')) loadDashboard(); }, 60000); }
+        function updateClock() { const el = document.getElementById('current-time-display'); if(el) el.textContent = new Date().toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'}); }
+        function timeToMinutes(t) { const [h,m] = t.split(':').map(Number); return h*60+m; }
+        
+        function openTeacherSettings() { document.getElementById('settings-teacher-name').value = users[currentUser].name; document.getElementById('settings-teacher-email').value = currentUser; document.getElementById('settings-teacher-pwd').value=''; switchSettingsTab('cuenta'); showView('view-teacher-settings'); if (typeof refreshServerUI === 'function') refreshServerUI(); }
+        function switchSettingsTab(tName) { ['cuenta','nocturno','general'].forEach(t => { document.getElementById('st-pane-'+t).classList.remove('active'); document.getElementById('st-btn-'+t).className="flex-1 py-3 border-b-2 border-transparent text-gray-500"; }); document.getElementById('st-pane-'+tName).classList.add('active'); document.getElementById('st-btn-'+tName).className="flex-1 py-3 border-b-2 border-brand-600 text-brand-600 font-bold"; }
+        function saveTeacherAccountSettings() { const n = document.getElementById('settings-teacher-name').value, e = document.getElementById('settings-teacher-email').value, pw = document.getElementById('settings-teacher-pwd').value; if(!n||!e) return; if(e !== currentUser) { users[e] = users[currentUser]; delete users[currentUser]; currentUser = e; localStorage.setItem('edu_current_user', currentUser); } users[currentUser].name = n; if(pw) users[currentUser].password = pw; localStorage.setItem('edu_users', JSON.stringify(users)); showAlert('Éxito','Datos guardados','success'); loadDashboard(); }
+        function exportStudentPDF(m) { showAlert('Exportar PDF', `Reporte de "${m}" para ${currentUser.name} descargado.`, 'success'); }
+
+        function loadStudentDashboard() {
+            showView('view-student-dashboard'); document.getElementById('student-welcome').innerText = "Hola, " + currentUser.name.split(' ')[0]; document.getElementById('student-account-display').innerText = "Cta: " + currentUser.account;
+            const container = document.getElementById('student-classes'); container.innerHTML = '';
+            const myClasses = classes.filter(c => c.students && c.students.some(s => s.account === currentUser.account));
+            if(myClasses.length === 0) { container.innerHTML = '<div class="text-center text-gray-400 py-10 bg-white rounded-2xl text-xs">Sin clases.</div>'; return; }
+            myClasses.forEach(cls => {
+                let totalC = 0, asist = 0; if(cls.attendance) for(let d in cls.attendance) { totalC++; if(cls.attendance[d][currentUser.account]) asist++; }
+                let pct = totalC === 0 ? 100 : Math.round((asist/totalC)*100);
+                let actHtml = ''; if(cls.activities && cls.activities.length) { actHtml = '<div class="mt-3 space-y-1.5 border-t pt-2 dark:border-gray-700 text-xs">'; cls.activities.forEach(a => { const n = a.grades?.[currentUser.account] || 'Pendiente'; actHtml += `<div class="flex justify-between"><span>${a.name}</span><span class="font-bold text-brand-600">${n}</span></div>`; }); actHtml += '</div>'; }
+                container.innerHTML += `<div class="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border-t-[6px] text-xs mb-4" style="border-color: ${cls.color}"><div class="flex justify-between items-start mb-2"><div><h4 class="font-bold text-sm">${cls.materia}</h4><p class="text-[10px] text-gray-400 mt-0.5"><i class="far fa-clock"></i> ${cls.start} - ${cls.end}</p></div><div class="text-center bg-gray-50 dark:bg-gray-700 p-1.5 rounded-lg"><span class="text-[9px] text-gray-400 block">Asistencia</span><span class="font-black text-sm ${pct < 80 ? 'text-red-500':'text-green-500'}">${pct}%</span></div></div>${actHtml}<div class="mt-3 pt-2 border-t text-right"><button onclick="exportStudentPDF('${cls.materia}')" class="bg-red-600 text-white px-3 py-1.5 rounded-xl font-bold text-[11px] shadow inline-flex gap-1"><i class="fas fa-file-pdf"></i> Exportar</button></div></div>`;
+            });
+        }
+
+        // ======== PORTAL DE ALUMNOS (servidor local por Hotspot) ========
+        let studentServerOn = false;
+        let srvTeacher = null;
+        let srvSyncTimer = null;
+
+        function tauriInvoke() { return window.__TAURI__?.core?.invoke || null; }
+
+        function buildServerPayload() {
+            const email = srvTeacher || currentUser;
+            const teacherName = (typeof email === 'string' && users[email]) ? users[email].name : '';
+            const mine = classes.filter(c => c.teacher === email);
+            return JSON.stringify({ teacher: teacherName, classes: mine });
+        }
+
+        // Cada vez que cambian las clases (calificaciones, asistencia, alumnos...) se manda un snapshot al servidor
+        function scheduleServerSync() {
+            if (!studentServerOn) return;
+            clearTimeout(srvSyncTimer);
+            srvSyncTimer = setTimeout(() => {
+                const inv = tauriInvoke();
+                if (inv) inv('servidor_alumnos_actualizar', { datos: buildServerPayload() }).catch(() => {});
+            }, 400);
+        }
+        (function hookClassesStorage() {
+            const orig = Storage.prototype.setItem;
+            Storage.prototype.setItem = function (k, v) {
+                orig.call(this, k, v);
+                if (k === 'edu_classes') scheduleServerSync();
+            };
+        })();
+
+        async function toggleStudentServer() {
+            const inv = tauriInvoke();
+            if (!inv) { showAlert('Solo en la app', 'El portal de alumnos funciona dentro de la app instalada (Tauri), no desde un navegador.', 'info'); return; }
+            const btn = document.getElementById('srv-btn');
+            btn.disabled = true;
+            try {
+                if (studentServerOn) {
+                    await inv('servidor_alumnos_detener');
+                    studentServerOn = false;
+                } else {
+                    srvTeacher = currentUser;
+                    await inv('servidor_alumnos_iniciar', { datos: buildServerPayload() });
+                    studentServerOn = true;
+                }
+                await refreshServerUI();
+            } catch (e) {
+                showAlert('Error', String(e), 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function refreshServerUI() {
+            const inv = tauriInvoke();
+            const btn = document.getElementById('srv-btn');
+            if (!inv || !btn) return;
+            let info;
+            try { info = await inv('servidor_alumnos_estado'); } catch (_) { return; }
+            studentServerOn = !!info.running;
+            const box = document.getElementById('srv-info');
+            const qr = document.getElementById('srv-qr');
+            const urlEl = document.getElementById('srv-url');
+            const msg = document.getElementById('srv-msg');
+            btn.textContent = info.running ? 'Detener portal de alumnos' : 'Iniciar portal de alumnos';
+            btn.className = 'w-full text-white py-2.5 rounded-xl font-bold ' + (info.running ? 'bg-red-600' : 'bg-brand-600');
+            if (!info.running) { box.classList.add('hidden'); return; }
+            box.classList.remove('hidden');
+            qr.innerHTML = '';
+            if (info.url) {
+                urlEl.innerText = info.url;
+                try { new QRCode(qr, { text: info.url, width: 140, height: 140 }); } catch (_) {}
+                msg.innerText = 'Portal activo. Mantén la app abierta mientras los alumnos descargan su reporte.';
+            } else {
+                urlEl.innerText = 'http://IP-DEL-HOTSPOT:' + info.port;
+                msg.innerText = 'No se detectó la IP. Activa el hotspot y vuelve a abrir esta pantalla, o usa la IP que muestra tu hotspot con el puerto ' + info.port + '.';
+            }
+        }
+
+        function openEditActivity() {}
+        function showStudentStats() {}
+    </script>
+</body>
+</html>

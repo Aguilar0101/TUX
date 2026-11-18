@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Tux's - Portal de Alumnos</title>
+<style>
+  :root { --brand:#16a34a; --brand-d:#15803d; --bg:#f3f4f6; --card:#fff; --txt:#111827; --mut:#6b7280; --bd:#e5e7eb; --err:#dc2626; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#111827; --card:#1f2937; --txt:#f9fafb; --mut:#9ca3af; --bd:#374151; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 480px; margin: 0 auto; min-height: 100vh; }
+  header { background: var(--brand); color:#fff; padding: 36px 20px 22px; border-radius: 0 0 24px 24px; box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+  header h1 { margin:0; font-size: 22px; font-weight: 900; }
+  header p { margin: 4px 0 0; font-size: 12px; opacity:.85; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
+  section { padding: 20px; }
+  label { display:block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  input { width:100%; padding: 14px; font-size: 16px; border:1px solid var(--bd); border-radius: 12px; background: var(--card); color: var(--txt); outline: none; }
+  input:focus { border-color: var(--brand); }
+  button { font: inherit; cursor: pointer; border: 0; border-radius: 12px; padding: 13px 16px; font-weight: 700; font-size: 14px; }
+  .primary { width:100%; background: var(--brand); color:#fff; margin-top: 14px; }
+  .primary:active { background: var(--brand-d); }
+  .secondary { background: var(--card); color: var(--txt); border: 1px solid var(--bd); }
+  button:disabled { opacity: .6; }
+  .err { color: var(--err); font-size: 13px; min-height: 18px; margin: 10px 0 0; }
+  .card { background: var(--card); border-radius: 16px; padding: 16px; margin-bottom: 14px; border-top: 6px solid var(--brand); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .row { display:flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .card h3 { margin: 0; font-size: 16px; }
+  .mut { color: var(--mut); font-size: 12px; margin-top: 2px; }
+  .pct { text-align:center; background: var(--bg); border-radius: 10px; padding: 6px 10px; min-width: 76px; }
+  .pct small { display:block; font-size: 10px; color: var(--mut); }
+  .pct b { font-size: 18px; }
+  .ok { color:#16a34a; } .bad { color:#ef4444; }
+  .avg { margin-top: 10px; font-size: 13px; }
+  .actions { display:grid; gap: 10px; margin-top: 6px; }
+  .sec { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--bd); }
+  .sec h4 { margin: 0 0 6px; font-size: 13px; }
+  .li { display:flex; align-items:center; gap: 8px; padding: 5px 0; font-size: 13px; }
+  .li .m { width: 18px; text-align:center; font-weight: 900; font-size: 15px; flex: none; }
+  .li .m.y { color: #16a34a; } .li .m.n { color: #dc2626; }
+  .li .t { flex: 1; }
+  .li .g { font-weight: 800; color: var(--brand); }
+  .li .no { color: #dc2626; font-weight: 700; font-size: 12px; }
+  .li .si { color: #16a34a; font-weight: 700; font-size: 12px; }
+  .dias { max-height: 220px; overflow-y: auto; }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>The Tux's</h1>
+    <p>Portal de Alumnos</p>
+  </header>
+
+  <section id="login">
+    <form id="f" autocomplete="off">
+      <label for="cta">Número de cuenta</label>
+      <input id="cta" type="text" inputmode="numeric" placeholder="Ej. 31234567" required>
+      <button class="primary" type="submit" id="btn-in">Ingresar</button>
+      <p class="err" id="err" role="alert"></p>
+    </form>
+  </section>
+
+  <section id="panel" hidden>
+    <h2 id="hola" style="margin:0 0 2px;font-size:20px"></h2>
+    <p class="mut" id="cuenta" style="margin:0 0 16px"></p>
+    <p class="err" id="err2" role="alert"></p>
+    <div id="clases"></div>
+    <div class="actions">
+      <button class="primary" id="btn-todos" style="margin-top:0">Descargar reporte de todas las materias (PDF)</button>
+      <button class="secondary" id="btn-refrescar">Actualizar datos</button>
+      <button class="secondary" id="btn-salir">Salir</button>
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  var sesion = null;
+  var $ = function (id) { return document.getElementById(id); };
+
+  function hoy() {
+    var d = new Date(), p = function (n) { return String(n).padStart(2, '0'); };
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  }
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+
+  async function login(cuenta) {
+    var r = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ account: cuenta })
+    });
+    var j = {};
+    try { j = await r.json(); } catch (_) {}
+    if (!r.ok) throw new Error(j.error || 'No se pudo iniciar sesión.');
+    return j;
+  }
+
+  function pintar() {
+    $('hola').textContent = 'Hola, ' + (sesion.name || '').split(' ')[0];
+    $('cuenta').textContent = 'Cta: ' + sesion.account;
+    $('err2').textContent = '';
+    var cont = $('clases');
+    cont.innerHTML = '';
+    if (!sesion.classes.length) {
+      cont.appendChild(el('div', 'card', 'No tienes clases registradas.'));
+    }
+    sesion.classes.forEach(function (c) {
+      var card = el('div', 'card');
+      var top = el('div', 'row');
+      var izq = el('div');
+      izq.appendChild(el('h3', '', c.materia));
+      izq.appendChild(el('div', 'mut', c.horario));
+      izq.appendChild(el('div', 'mut', c.asistencias + ' de ' + c.sesiones + ' sesiones'));
+      var pct = el('div', 'pct');
+      pct.appendChild(el('small', '', 'Asistencia'));
+      pct.appendChild(el('b', c.pct < 80 ? 'bad' : 'ok', c.pct + '%'));
+      top.appendChild(izq); top.appendChild(pct);
+      card.appendChild(top);
+
+      card.appendChild(el('div', 'avg', 'Promedio: ' + (c.promedio === null ? 'Sin calificaciones' : c.promedio.toFixed(1))));
+
+      // Asistencia día por día
+      var sa = el('div', 'sec');
+      sa.appendChild(el('h4', '', 'Asistencia por día'));
+      if (!c.dias.length) {
+        sa.appendChild(el('div', 'mut', 'Aún no hay sesiones registradas.'));
+      } else {
+        var lista = el('div', 'dias');
+        c.dias.forEach(function (d) {
+          var f = el('div', 'li');
+          f.appendChild(el('span', 'm ' + (d.presente ? 'y' : 'n'), d.presente ? '✓' : '✗'));
+          f.appendChild(el('span', 't', d.fecha));
+          f.appendChild(el('span', d.presente ? 'si' : 'no', d.presente ? 'Asistió' : 'Faltó'));
+          lista.appendChild(f);
+        });
+        sa.appendChild(lista);
+      }
+      card.appendChild(sa);
+
+      // Actividades con fecha de entrega y estado correcto
+      var sx = el('div', 'sec');
+      sx.appendChild(el('h4', '', 'Actividades'));
+      if (!c.actividades.length) {
+        sx.appendChild(el('div', 'mut', 'Aún no hay actividades.'));
+      } else {
+        c.actividades.forEach(function (a) {
+          var f = el('div', 'li');
+          var nombreTexto = a.name;
+          if (a.fecha_entrega) {
+            nombreTexto += ' (Entrega: ' + a.fecha_entrega + ')';
+          } else if (a.fecha) {
+            nombreTexto += ' (Fecha: ' + a.fecha + ')';
+          }
+          
+          if (a.estado === 'nota') {
+            f.appendChild(el('span', 'm', '•'));
+            f.appendChild(el('span', 't', nombreTexto));
+            f.appendChild(el('span', 'g', a.texto));
+          } else if (a.estado === 'entregado') {
+            f.appendChild(el('span', 'm y', '✓'));
+            f.appendChild(el('span', 't', nombreTexto));
+            f.appendChild(el('span', 'si', 'Entregado'));
+          } else {
+            f.appendChild(el('span', 'm n', '✗'));
+            f.appendChild(el('span', 't', nombreTexto));
+            f.appendChild(el('span', 'no', 'No entregado'));
+          }
+          sx.appendChild(f);
+        });
+      }
+      card.appendChild(sx);
+
+      var b = el('button', 'primary', 'Descargar reporte (PDF)');
+      b.addEventListener('click', function () { descargar(c.id, b); });
+      card.appendChild(b);
+      cont.appendChild(card);
+    });
+  }
+
+  function mostrarPanel(on) {
+    $('login').hidden = on;
+    $('panel').hidden = !on;
+  }
+
+  async function descargar(id, btn) {
+    if (!sesion) return;
+    var q = new URLSearchParams({ token: sesion.token, fecha: hoy() });
+    if (id) q.set('class', id);
+    var txt = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Generando…';
+    $('err2').textContent = '';
+    try {
+      var r = await fetch('/reporte.pdf?' + q.toString());
+      if (!r.ok) {
+        if (r.status === 401) { salir(); $('err').textContent = 'Tu sesión expiró. Vuelve a ingresar.'; return; }
+        throw new Error('No se pudo generar el reporte.');
+      }
+      var blob = await r.blob();
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = 'Reporte_' + sesion.account + '.pdf';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+    } catch (e) {
+      $('err2').textContent = e.message || 'Error al descargar.';
+    } finally {
+      btn.disabled = false; btn.textContent = txt;
+    }
+  }
+
+  function salir() {
+    sesion = null;
+    $('cta').value = '';
+    mostrarPanel(false);
+  }
+
+  $('f').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    $('err').textContent = '';
+    var b = $('btn-in'); b.disabled = true;
+    try {
+      sesion = await login($('cta').value.trim());
+      pintar(); mostrarPanel(true);
+    } catch (er) {
+      $('err').textContent = er.message || 'Error de conexión con el profesor.';
+    } finally { b.disabled = false; }
+  });
+
+  $('btn-todos').addEventListener('click', function () { descargar(null, $('btn-todos')); });
+  $('btn-salir').addEventListener('click', salir);
+  $('btn-refrescar').addEventListener('click', async function () {
+    try { sesion = await login(sesion.account); pintar(); }
+    catch (er) { $('err2').textContent = er.message; }
+  });
+})();
+</script>
+</body>
+</html>
