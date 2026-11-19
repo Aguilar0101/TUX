@@ -26,8 +26,16 @@ jobs:
       - name: Build iOS without signing
         run: npm run tauri ios build -- --no-sign
 
-      - name: Upload iOS app bundle
+      - name: Package unsigned IPA
+        run: |
+          APP_PATH=$(find src-tauri/gen/apple -name "*.app" -type d | head -n 1)
+          echo "Found app at: $APP_PATH"
+          mkdir -p Payload
+          cp -r "$APP_PATH" Payload/
+          zip -r tux-unsigned.ipa Payload
+
+      - name: Upload iOS artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tux-ios-app
-          path: src-tauri/gen/apple/build/arm64/*.app
+          name: tux-ios-unsigned
+          path: tux-unsigned.ipa
