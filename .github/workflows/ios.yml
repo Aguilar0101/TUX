@@ -25,3 +25,9 @@ jobs:
 
       - name: Build iOS without signing
         run: npm run tauri ios build -- --no-sign
+
+      - name: Upload iOS app bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: tux-ios-app
+          path: src-tauri/gen/apple/build/arm64/*.app
