@@ -23,14 +23,5 @@ jobs:
 
       - run: npm run tauri ios init -- --ci
 
-      - run: npm run tauri ios build -- --export-method app-store-connect
-        env:
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          APPLE_API_KEY_ISSUER: ${{ secrets.APPLE_API_KEY_ISSUER }}
-          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
-          APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_DEVELOPMENT_TEAM }}
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: tux-ios
-          path: src-tauri/gen/apple/build/**/*.ipa   
+      - name: Build iOS without signing
+        run: npm run tauri ios build -- --no-sign
